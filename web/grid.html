@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FORMATION SCANNER · сетка</title>
+<style>
+  :root{
+    --bg:#0c0d0f; --panel:#131418; --line:#25262c; --line2:#1a1b20;
+    --txt:#e2e2e4; --muted:#6b6d75; --dim:#43454c;
+    --up:#4E966F; --down:#DD3742; --accent:#56b6c2; --accent-bg:rgba(86,182,194,.12);
+    --amber:#c9a23a;
+    --mono:'SF Mono','JetBrains Mono','Fira Code',ui-monospace,Consolas,'Courier New',monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--txt); font-family:var(--mono); font-size:13px;
+    line-height:1.4; padding:0 0 40px}
+  header{border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:5}
+  .bar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:8px 14px}
+  .title{font-size:14px; letter-spacing:1px; color:#fff}
+  .lbl{font-size:10px; color:var(--muted); letter-spacing:1px}
+  main{max-width:1120px; margin:0 auto; padding:16px 14px}
+  section{background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:14px 16px;
+    margin-bottom:16px; overflow-x:auto}
+  h2{font-size:11px; letter-spacing:1.5px; color:var(--accent); margin:0 0 12px; font-weight:500}
+  .hint{font-size:10.5px; color:var(--dim); margin-top:8px}
+  input,select{background:var(--bg); border:1px solid var(--line); color:var(--txt);
+    font-family:var(--mono); font-size:12px; padding:4px 7px; border-radius:3px}
+  input:focus,select:focus{outline:none; border-color:var(--accent)}
+  input.num{width:66px; text-align:right}
+  button{background:var(--panel); border:1px solid var(--line); color:var(--muted);
+    font-family:var(--mono); font-size:11.5px; padding:4px 11px; border-radius:3px;
+    cursor:pointer; letter-spacing:.6px; white-space:nowrap}
+  button:hover{border-color:var(--accent); color:var(--txt)}
+  button.on{background:var(--accent-bg); border-color:var(--accent); color:#fff}
+  button.danger:hover{border-color:var(--down); color:var(--down)}
+  button:disabled{opacity:.4; cursor:not-allowed; border-color:var(--line); color:var(--dim)}
+  button:disabled:hover{border-color:var(--line); color:var(--dim)}
+  table{width:100%; border-collapse:collapse; font-size:11.5px}
+  th{color:var(--muted); font-weight:500; text-align:left; padding:4px 8px; font-size:10px;
+    letter-spacing:.5px; border-bottom:1px solid var(--line)}
+  td{padding:5px 8px; border-bottom:1px solid var(--line2); white-space:nowrap}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px}
+  .ok{color:var(--up)} .err{color:var(--down)}
+  .rng{display:flex; align-items:center; gap:5px}
+  .rng .lbl{width:52px}
+
+  /* ── оценка стоимости: не график, а плитки чисел ── */
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:1px;
+    background:var(--line2); border:1px solid var(--line2); border-radius:3px; overflow:hidden}
+  .tile{background:var(--panel); padding:9px 11px}
+  .tile .k{font-size:9.5px; color:var(--muted); letter-spacing:.8px}
+  .tile .v{font-size:16px; color:var(--txt); margin-top:3px}
+  .tile .v.warn{color:var(--amber)}
+
+  /* ── тепловая карта ──
+     Величина кодируется ОДНИМ тоном (--accent) через насыщенность: ноль = фон
+     панели, максимум = полный акцент. Радуги нет намеренно — у последовательной
+     шкалы порядок должен читаться сам, без легенды-словаря. Значение в ячейке
+     напечатано числом, поэтому карта читается и без цвета вообще. */
+  table.heat{width:auto; border-collapse:separate; border-spacing:2px}
+  table.heat th{border:none; padding:3px 7px; text-align:center}
+  table.heat th.rh{text-align:right}
+  td.cell{padding:0; border:none}
+  td.cell .c{min-width:74px; padding:8px 6px; border-radius:3px; text-align:center; cursor:pointer;
+    border:1px solid transparent}
+  td.cell .c .m{font-size:12.5px; color:var(--txt)}
+  td.cell .c .n{font-size:9.5px; color:var(--muted); margin-top:2px}
+  td.cell .c:hover{border-color:var(--accent)}
+  td.cell .c.sel{border-color:#fff}
+  td.cell .c.thin{background:var(--line2) !important}      /* выборки мало — цвету верить нельзя */
+  td.cell .c.thin .m{color:var(--dim)}
+  td.cell .c.empty{background:transparent !important; cursor:default}
+  td.cell .c.empty .m{color:var(--dim)}
+
+  .legend{display:flex; align-items:center; gap:7px; margin-top:12px; font-size:10px; color:var(--muted)}
+  .legend .sw{display:flex; gap:2px}
+  .legend .sw i{width:22px; height:11px; border-radius:2px; display:block}
+
+  #tip{position:fixed; z-index:50; display:none; background:var(--bg); border:1px solid var(--accent);
+    border-radius:3px; padding:7px 9px; font-size:11px; pointer-events:none; box-shadow:0 4px 14px rgba(0,0,0,.6)}
+  #tip b{color:#fff; font-weight:400}
+  #tip .g{color:var(--muted)}
+  #toast{position:fixed; bottom:18px; right:18px; background:var(--panel); border:1px solid var(--accent);
+    color:var(--txt); padding:9px 14px; border-radius:4px; font-size:12px; display:none; z-index:99}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <span class="title">FORMATION SCANNER</span>
+    <span class="lbl">СЕТКА</span>
+    <span id="engState" class="lbl">…</span>
+  </div>
+</header>
+<main>
+
+<section>
+  <h2>ЭКСПЕРИМЕНТ</h2>
+  <div class="row">
+    <span class="lbl">ИМЯ</span><input id="expName" value="grid" style="width:110px">
+    <span class="lbl">ТФ</span><select id="expTf"></select>
+    <span class="lbl">МОНЕТ ТОП</span><input id="expTop" class="num" type="number" min="1" max="500" value="150">
+    <span class="lbl">k3</span><input id="expK3" class="num" type="number" step="0.01" value="0.1">
+    <span class="lbl">TTL, баров</span><input id="expTtl" class="num" type="number" min="1" max="500" value="20">
+  </div>
+  <div class="row">
+    <span class="rng"><span class="lbl">k1</span> от <input id="k1From" class="num" type="number" step="0.01" value="0.5">
+      до <input id="k1To" class="num" type="number" step="0.01" value="0.7">
+      шаг <input id="k1Step" class="num" type="number" step="0.01" value="0.1"> <span id="k1N" class="lbl"></span></span>
+  </div>
+  <div class="row">
+    <span class="rng"><span class="lbl">k2</span> от <input id="k2From" class="num" type="number" step="0.01" value="0.2">
+      до <input id="k2To" class="num" type="number" step="0.01" value="0.4">
+      шаг <input id="k2Step" class="num" type="number" step="0.01" value="0.1"> <span id="k2N" class="lbl"></span></span>
+  </div>
+  <div class="row">
+    <span class="rng"><span class="lbl">ОКНО</span> от <input id="rFrom" class="num" type="number" value="40">
+      до <input id="rTo" class="num" type="number" value="80">
+      шаг <input id="rStep" class="num" type="number" value="20"> <span id="rN" class="lbl"></span></span>
+  </div>
+
+  <div class="tiles" id="est"></div>
+
+  <div class="row" style="margin-top:12px">
+    <button id="btnLaunch" class="on">ЗАПУСТИТЬ СБОР</button>
+    <button id="btnStopExp">ВЫКЛЮЧИТЬ</button>
+    <button id="btnDrop" class="danger">УДАЛИТЬ ДАННЫЕ ЭКСПЕРИМЕНТА</button>
+    <span id="expState" class="lbl"></span>
+  </div>
+  <div class="hint">
+    Сбор идёт вперёд по живому рынку: комбинации сканируются теми же барами, что и рабочий профиль,
+    поэтому размер сетки на нагрузку к бирже не влияет — влияет только число монет и ТФ.
+    Снапшоты у комбинаций не собираются, в базу эксперимента пишется короткая строка.
+    Оценки ниже считаются по демо-множителям из grid.js — замените их замерами своей гипотезы.
+  </div>
+</section>
+
+<section>
+  <h2>РЕЗУЛЬТАТ</h2>
+  <div class="row">
+    <span class="lbl">МЕТРИКА</span><select id="metric">
+      <option value="p4">% оценки 4</option>
+      <option value="p34">% оценок 3–4</option>
+      <option value="avg">средняя оценка</option>
+      <option value="p0">% оценки 0</option>
+      <option value="n">N сигналов</option>
+    </select>
+    <span class="lbl">ОКНО</span><span id="rTabs" class="row" style="margin:0"></span>
+    <span class="lbl">МИН. С ОЦЕНКОЙ</span><input id="minN" class="num" type="number" min="0" value="30">
+    <button id="btnReload">ОБНОВИТЬ</button>
+  </div>
+
+  <div id="heat"></div>
+  <div class="legend" id="legend"></div>
+  <div class="hint" id="mapHint"></div>
+</section>
+
+<section>
+  <h2>ТОП КОМБИНАЦИЙ</h2>
+  <div style="overflow-x:auto"><table id="top"><tbody></tbody></table></div>
+  <div class="row" style="margin-top:12px">
+    <span class="lbl">ПЕРЕНЕСТИ В ПРОФИЛЬ</span>
+    <select id="targetProfile"></select>
+    <button id="btnApply">ПРИМЕНИТЬ ВЫБРАННУЮ</button>
+    <span id="selInfo" class="lbl"></span>
+  </div>
+  <div class="hint">
+    Кнопка пишет k1 / k2 / окно выбранной ячейки в рабочий скан-профиль и перезапускает движок.
+  </div>
+</section>
+
+</main>
+<div id="tip"></div>
+<div id="toast"></div>
+<script src="/grid.js"></script>
+<script src="/nav.js"></script>
+</body>
+</html>

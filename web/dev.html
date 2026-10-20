@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FORMATION SCANNER · статус</title>
+<style>
+  :root{
+    --bg:#0c0d0f; --panel:#131418; --card:#181818; --line:#25262c;
+    --txt:#e2e2e4; --muted:#6b6d75; --dim:#43454c;
+    --up:#4E966F; --down:#DD3742; --accent:#56b6c2;
+    --mono:'SF Mono','JetBrains Mono','Fira Code',ui-monospace,Consolas,'Courier New',monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--txt); font-family:var(--mono);
+    font-size:13px; line-height:1.4; padding:24px; max-width:960px; margin-inline:auto}
+  h1{font-size:15px; letter-spacing:2px; color:#fff; margin:0 0 4px}
+  .sub{color:var(--muted); font-size:11px; margin-bottom:20px}
+  section{background:var(--panel); border:1px solid var(--line); border-radius:4px;
+    padding:14px 16px; margin-bottom:14px}
+  h2{font-size:11px; letter-spacing:1.5px; color:var(--accent); margin:0 0 10px; font-weight:500}
+  .kv{display:grid; grid-template-columns:180px 1fr; gap:3px 12px; font-size:12px}
+  .kv .k{color:var(--muted)}
+  .dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--dim); margin-right:7px}
+  .dot.ok{background:var(--up); box-shadow:0 0 6px var(--up)}
+  .dot.err{background:var(--down); box-shadow:0 0 6px var(--down)}
+  input,select{background:var(--bg); border:1px solid var(--line); color:var(--txt);
+    font-family:var(--mono); font-size:12px; padding:5px 8px; border-radius:3px}
+  input:focus,select:focus{outline:none; border-color:var(--accent)}
+  input.num{width:70px; text-align:right}
+  button{background:var(--panel); border:1px solid var(--line); color:var(--muted);
+    font-family:var(--mono); font-size:11.5px; padding:5px 12px; border-radius:3px;
+    cursor:pointer; letter-spacing:.6px}
+  button:hover{border-color:var(--accent); color:var(--txt)}
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px}
+  .lbl{font-size:10px; color:var(--muted); letter-spacing:1px}
+  pre{background:var(--bg); border:1px solid var(--line); border-radius:3px; padding:10px;
+    font-size:11px; overflow:auto; max-height:340px; margin:0; color:var(--txt)}
+  .long{color:var(--up)} .short{color:var(--down)}
+</style>
+</head>
+<body>
+<h1>FORMATION SCANNER</h1>
+<div class="sub">страница разработчика</div>
+
+<section>
+  <h2>ДВИЖОК</h2>
+  <div class="row">
+    <button id="engStart">СТАРТ</button>
+    <button id="engStop">СТОП</button>
+    <span id="engState" class="lbl"></span>
+  </div>
+  <div class="kv">
+    <span class="k">профили</span><span id="engProfiles">—</span>
+    <span class="k">паттернов под скорингом</span><span id="engArmed">—</span>
+    <span class="k">открытых наблюдений</span><span id="engOpen">—</span>
+    <span class="k">наблюдений в БД всего</span><span id="engTotal">—</span>
+    <span class="k">последняя ошибка</span><span id="engErr">—</span>
+  </div>
+</section>
+
+<section>
+  <h2>ПАТТЕРНЫ (последние)</h2>
+  <div class="row"><button id="fRefresh">ОБНОВИТЬ</button></div>
+  <pre id="fList" style="max-height:200px">…</pre>
+</section>
+
+<section>
+  <h2>НАБЛЮДЕНИЯ (журнал, последние 30)</h2>
+  <div class="row">
+    <button id="eRefresh">ОБНОВИТЬ</button>
+    <span class="lbl">клик по номеру → снапшот в новой вкладке</span>
+  </div>
+  <pre id="eList" style="max-height:280px">…</pre>
+</section>
+
+<section>
+  <h2>СТАТУС СЕРВЕРА</h2>
+  <div class="kv" id="health">
+    <span class="k">состояние</span><span><span class="dot" id="dot"></span><span id="st">проверка…</span></span>
+    <span class="k">версия</span><span id="ver">—</span>
+    <span class="k">аптайм</span><span id="up">—</span>
+    <span class="k">база данных</span><span id="dbinfo">—</span>
+    <span class="k">очередь запросов</span><span id="qinfo">—</span>
+    <span class="k">ping биржи</span><span id="ping">—</span>
+  </div>
+</section>
+
+<section>
+  <h2>ТЕСТ: СВЕЧИ И ДЕТЕКТОР ГИПОТЕЗЫ (Binance Futures)</h2>
+  <div class="row">
+    <span class="lbl">ТИКЕР</span><input id="symbol" value="BTCUSDT" style="width:120px">
+    <span class="lbl">ТФ</span>
+    <select id="tf">
+      <option>1m</option><option>5m</option><option selected>15m</option>
+      <option>30m</option><option>1H</option><option>4H</option><option>1D</option>
+    </select>
+    <span class="lbl">ДИАПАЗОН</span><input class="num" id="range" type="number" value="60">
+    <span class="lbl">k1</span><input class="num" id="k1" type="number" step="0.01" value="0.6">
+    <span class="lbl">k2</span><input class="num" id="k2" type="number" step="0.01" value="0.3">
+    <span class="lbl">k3</span><input class="num" id="k3" type="number" step="0.01" value="0.1">
+  </div>
+  <div class="row">
+    <button id="btnKlines">СВЕЧИ (последние 5)</button>
+    <button id="btnScan">ПРОВЕРИТЬ ПАТТЕРН</button>
+    <span id="verdict"></span>
+  </div>
+  <pre id="out">…</pre>
+</section>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const fmt = o => JSON.stringify(o, null, 2);
+
+async function health(){
+  try{
+    const h = await (await fetch('/api/health')).json();
+    $('dot').className = 'dot ok'; $('st').textContent = 'OK';
+    $('ver').textContent = h.version;
+    $('up').textContent = h.uptimeSec + ' с';
+    $('dbinfo').textContent = h.db.tables + ' таблиц · ' + h.db.file;
+    $('qinfo').textContent = 'всего ' + h.queue.total + ' · активно ' + h.queue.active +
+      ' · параллелизм ' + h.queue.maxConcurrency;
+  }catch(e){
+    $('dot').className = 'dot err'; $('st').textContent = 'сервер недоступен';
+  }
+}
+async function ping(){
+  try{ const p = await (await fetch('/api/market/ping')).json(); $('ping').textContent = p.ms + ' мс'; }
+  catch(e){ $('ping').textContent = 'ошибка: ' + e.message; }
+}
+
+function params(){
+  return 'symbol=' + encodeURIComponent($('symbol').value.trim()) +
+    '&tf=' + $('tf').value + '&range=' + $('range').value +
+    '&k1=' + $('k1').value + '&k2=' + $('k2').value + '&k3=' + $('k3').value;
+}
+
+$('btnKlines').onclick = async () => {
+  $('out').textContent = 'загрузка…'; $('verdict').textContent = '';
+  try{
+    const r = await (await fetch('/api/market/klines?symbol=' +
+      encodeURIComponent($('symbol').value.trim()) + '&tf=' + $('tf').value + '&limit=120')).json();
+    if(r.error){ $('out').textContent = 'Ошибка: ' + r.error; return; }
+    $('out').textContent = 'получено баров: ' + r.count + '\n\nпоследние 5:\n' + fmt(r.klines.slice(-5));
+  }catch(e){ $('out').textContent = 'Ошибка: ' + e.message; }
+};
+
+$('btnScan').onclick = async () => {
+  $('out').textContent = 'сканирование…'; $('verdict').textContent = '';
+  try{
+    const r = await (await fetch('/api/scan/symbol?' + params())).json();
+    if(r.error){ $('out').textContent = 'Ошибка: ' + r.error; return; }
+    if(r.pattern){
+      const d = r.pattern.dir.toUpperCase();
+      $('verdict').innerHTML = '→ <b class="' + r.pattern.dir + '">' + d + '</b>';
+    } else {
+      $('verdict').textContent = '→ паттерна нет';
+    }
+    $('out').textContent = fmt(r);
+  }catch(e){ $('out').textContent = 'Ошибка: ' + e.message; }
+};
+
+/* ── движок ── */
+async function engineStatus(){
+  try{
+    const s = await (await fetch('/api/engine/status')).json();
+    $('engState').textContent = s.running ? '● работает' : '○ остановлен';
+    $('engState').style.color = s.running ? 'var(--up)' : 'var(--muted)';
+    $('engProfiles').textContent = s.profiles.map(p =>
+      p.name + ' (' + p.tf + ', ' + (p.enabled ? 'ON' : 'off') + ', монет: ' + p.universe +
+      (p.lastScanAt ? ', скан ' + new Date(p.lastScanAt).toLocaleTimeString('ru-RU') : '') + ')'
+    ).join(' · ') || '—';
+    $('engArmed').textContent = s.scoringCount;
+    $('engOpen').textContent = s.openCount;
+    $('engTotal').textContent = s.entries.total + ' (открыто ' + s.entries.open + ')';
+    $('engErr').textContent = s.lastError || '—';
+  }catch(e){ $('engState').textContent = '?'; }
+}
+$('engStart').onclick = async () => { await fetch('/api/engine/start',{method:'POST'}); engineStatus(); };
+$('engStop').onclick = async () => { await fetch('/api/engine/stop',{method:'POST'}); engineStatus(); };
+
+const ft = t => new Date(t).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+async function formations(){
+  try{
+    const list = await (await fetch('/api/formations?limit=25')).json();
+    if(!list.length){ $('fList').textContent = 'пока нет паттернов'; return; }
+    $('fList').textContent = list.map(f =>
+      ft(f.detected_at) + '  ' + f.symbol.padEnd(14) + f.dir.toUpperCase().padEnd(6) +
+      f.status.padEnd(10) + ' A=' + f.price_A + ' B=' + f.price_B + ' C=' + f.price_C +
+      (f.cancel_reason ? '  (' + f.cancel_reason + ')' : '') +
+      '  [' + f.id.split('|')[0] + ']'
+    ).join('\n');
+  }catch(e){ $('fList').textContent = 'ошибка: ' + e.message; }
+}
+$('fRefresh').onclick = formations;
+
+async function entries(){
+  try{
+    const list = await (await fetch('/api/entries?limit=30')).json();
+    if(!list.length){ $('eList').textContent = 'пока нет записей — движок ждёт сигналов'; return; }
+    $('eList').innerHTML = list.map(e => {
+      const stars = e.score_stage === 'final' ? 'оценка ' + (e.score ?? 0) : (e.score_stage ? 'скоринг…' : '');
+      return '<a href="/api/entries/' + e.id + '/snapshot" target="_blank" style="color:var(--accent)">#' + String(e.id).padStart(4) + '</a> ' +
+        ft(e.entered_at) + '  ' + e.symbol.padEnd(14) +
+        '<span class="' + (e.dir === 'long' ? 'long' : 'short') + '">' + e.dir.toUpperCase().padEnd(6) + '</span>' +
+        stars.padEnd(12) +
+        'сиг=' + e.entry_price + '  ' +
+        e.status.padEnd(7) + (e.exit_reason || '').padEnd(8) +
+        (e.mfe_pct != null ? '  MFE ' + e.mfe_pct.toFixed(2) + '% / MAE ' + e.mae_pct.toFixed(2) + '%' : '');
+    }).join('\n');
+  }catch(e){ $('eList').textContent = 'ошибка: ' + e.message; }
+}
+$('eRefresh').onclick = entries;
+
+health(); ping(); engineStatus(); formations(); entries();
+setInterval(health, 5000);
+setInterval(engineStatus, 10000);
+setInterval(() => { formations(); entries(); }, 30000);
+</script>
+<script src="/nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FORMATION SCANNER · журнал</title>
+<style>
+  :root{
+    --bg:#0c0d0f; --panel:#131418; --filter:#15161b; --card:#181818;
+    --line:#25262c; --line2:#1a1b20;
+    --txt:#e2e2e4; --muted:#6b6d75; --dim:#43454c;
+    --up:#4E966F; --down:#DD3742; --accent:#56b6c2;
+    --accent-bg:rgba(86,182,194,.12); --amber:#c9a23a;
+    --mono:'SF Mono','JetBrains Mono','Fira Code',ui-monospace,Consolas,'Courier New',monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0; height:100%}
+  body{background:var(--bg); color:var(--txt); font-family:var(--mono); font-size:13px;
+    line-height:1.35; display:flex; flex-direction:column; overflow:hidden}
+
+  header{flex:0 0 auto; border-bottom:1px solid var(--line)}
+  .bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:7px 12px}
+  .bar + .bar{border-top:1px solid var(--line2); background:var(--filter)}
+  .title{font-size:14px; letter-spacing:1px; color:#fff}
+  .sep{width:1px; align-self:stretch; background:var(--line); margin:0 2px}
+  .lbl{font-size:10px; color:var(--muted); letter-spacing:1px}
+  .ctl{display:flex; align-items:center; gap:5px}
+  a{color:var(--accent); text-decoration:none}
+
+  input,select{background:var(--bg); border:1px solid var(--line); color:var(--txt);
+    font-family:var(--mono); font-size:12px; padding:4px 7px; border-radius:3px}
+  input:focus,select:focus{outline:none; border-color:var(--accent)}
+  input.num{width:70px}
+  button{background:var(--panel); border:1px solid var(--line); color:var(--muted);
+    font-family:var(--mono); font-size:11.5px; padding:4px 10px; border-radius:3px;
+    cursor:pointer; letter-spacing:.6px; white-space:nowrap}
+  button:hover{border-color:var(--accent); color:var(--txt)}
+  button.on{background:var(--accent-bg); border-color:var(--accent); color:#fff}
+
+  .status{margin-left:auto; display:flex; align-items:center; gap:14px; font-size:10.5px}
+  .stat{color:var(--muted)} .stat b{color:var(--txt); font-weight:500}
+  .dot{display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--dim); margin-right:5px}
+  .dot.ok{background:var(--up); box-shadow:0 0 5px var(--up)}
+  .dot.err{background:var(--down); box-shadow:0 0 5px var(--down)}
+
+  /* сводная статистика */
+  .stats{display:flex; gap:22px; padding:8px 12px; border-bottom:1px solid var(--line2);
+    font-size:11px; flex-wrap:wrap}
+  .stats .s{color:var(--muted)} .stats .s b{color:var(--txt); font-weight:500; margin-left:5px}
+  .up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--muted)}
+  .star{color:var(--amber); letter-spacing:1px}
+  .dimstar{color:var(--dim); letter-spacing:1px}
+
+  /* таблица журнала */
+  .tblwrap{flex:1 1 auto; overflow:auto}
+  table{width:100%; border-collapse:collapse; font-size:11.5px}
+  thead th{position:sticky; top:0; background:var(--panel); color:var(--muted); font-weight:500;
+    text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); cursor:pointer;
+    white-space:nowrap; letter-spacing:.5px; font-size:10px; user-select:none}
+  thead th:hover{color:var(--txt)}
+  thead th.sorted{color:var(--accent)}
+  tbody td{padding:4px 8px; border-bottom:1px solid var(--line2); white-space:nowrap}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--accent-bg)}
+  .empty{padding:50px; text-align:center; color:var(--muted)}
+
+  /* ═══ Просмотрщик снапшота ═══ */
+  .viewer{position:fixed; inset:0; background:var(--bg); display:none; flex-direction:column; z-index:10}
+  .viewer.show{display:flex}
+  .vhead{display:flex; align-items:center; gap:12px; padding:8px 12px; border-bottom:1px solid var(--line); flex-wrap:wrap}
+  .vhead .sym{font-size:15px; color:#fff; letter-spacing:.5px}
+  .vbody{flex:1 1 auto; display:flex; min-height:0}
+  .vchart{flex:1 1 auto; position:relative; min-width:0}
+  .vchart canvas{width:100%; height:100%; display:block}
+  .vside{flex:0 0 300px; border-left:1px solid var(--line); overflow-y:auto; padding:10px 12px; font-size:11px}
+  .vside h3{font-size:10px; letter-spacing:1.5px; color:var(--accent); margin:12px 0 6px; font-weight:500}
+  .vside h3:first-child{margin-top:0}
+  .vside .kv{display:grid; grid-template-columns:110px 1fr; gap:2px 8px}
+  .vside .k{color:var(--muted)}
+  .hint{font-size:10px; color:var(--dim)}
+  .tftabs{display:flex; gap:0}
+  .tftabs button{border-radius:0; border-right-width:0}
+  .tftabs button:first-child{border-radius:3px 0 0 3px}
+  .tftabs button:last-child{border-radius:0 3px 3px 0; border-right-width:1px}
+
+  .tblwrap::-webkit-scrollbar,.vside::-webkit-scrollbar{width:9px}
+  .tblwrap::-webkit-scrollbar-thumb,.vside::-webkit-scrollbar-thumb{background:#26282e; border-radius:5px}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <span class="title">FORMATION SCANNER</span>
+    <span class="lbl">ЖУРНАЛ СИГНАЛОВ</span>
+    <div class="status">
+      <span class="stat"><span class="dot" id="engDot"></span><b id="engTxt">…</b></span>
+      <span class="stat">под скорингом <b id="stScoring">—</b></span>
+      <span class="stat">наблюдается <b id="stOpen">—</b></span>
+      <span class="stat">всего сигналов <b id="stTotal">—</b></span>
+    </div>
+  </div>
+  <div class="bar">
+    <span class="lbl">ФИЛЬТРЫ</span>
+    <div class="ctl"><span class="lbl">СТАТУС</span>
+      <select id="fStatus"><option value="">все</option><option value="open">open</option><option value="closed">closed</option></select>
+    </div>
+    <div class="ctl"><span class="lbl">НАПР</span>
+      <select id="fDir"><option value="">все</option><option value="long">long</option><option value="short">short</option></select>
+    </div>
+    <div class="ctl"><span class="lbl">ОЦЕНКА</span>
+      <select id="fScore">
+        <option value="">все</option><option value="pending">в процессе</option>
+        <option value="4">★★★★</option><option value="3">★★★</option>
+        <option value="2">★★</option><option value="1">★</option><option value="0">0</option>
+      </select>
+    </div>
+    <div class="ctl"><span class="lbl">ТИКЕР</span><input id="fSymbol" class="num" placeholder="BTC…"></div>
+    <div class="ctl"><span class="lbl">ЛИМИТ</span>
+      <select id="fLimit"><option>200</option><option selected>500</option><option>1000</option></select>
+    </div>
+    <button id="fApply" class="on">ПРИМЕНИТЬ</button>
+    <span class="hint">клик по строке — открыть снапшот · клик по заголовку — сортировка</span>
+  </div>
+</header>
+
+<div class="stats" id="stats"></div>
+<div class="tblwrap">
+  <table>
+    <thead id="thead"></thead>
+    <tbody id="tbody"><tr><td class="empty" colspan="12">загрузка…</td></tr></tbody>
+  </table>
+</div>
+
+<!-- Просмотрщик -->
+<div class="viewer" id="viewer">
+  <div class="vhead">
+    <button id="vClose">✕ ЗАКРЫТЬ (Esc)</button>
+    <button id="vPrev">← ПРЕД</button>
+    <button id="vNext">СЛЕД →</button>
+    <div class="sep"></div>
+    <span class="sym" id="vSym">—</span>
+    <span id="vDir"></span>
+    <span id="vPnl"></span>
+    <div class="sep"></div>
+    <div class="tftabs" id="vTfs"></div>
+    <div class="tftabs" id="vSnaps" style="display:none">
+      <button id="vSnapSignal" class="on" title="контейнер на момент сигнала">СИГНАЛ</button>
+      <button id="vSnapScored" title="контейнер на момент фиксации оценки">ОЦЕНКА</button>
+    </div>
+    <button id="vAfter" style="display:none" title="показать бары от сигнала до фиксации оценки">РАЗВИТИЕ</button>
+    <span class="hint" style="margin-left:auto">колесо — зум · перетаскивание — прокрутка</span>
+  </div>
+  <div class="vbody">
+    <div class="vchart"><canvas id="vCanvas"></canvas></div>
+    <div class="vside" id="vSide"></div>
+  </div>
+</div>
+
+<script src="/chart.js"></script>
+<script src="/app.js"></script>
+<script src="/nav.js"></script>
+</body>
+</html>
