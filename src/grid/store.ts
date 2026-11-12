@@ -1,13 +1,13 @@
-/* Хранилище эксперимента по сетке.
-   Отдельный файл data/grid.db: у сетки другая форма данных (нет снапшотов, зато
-   есть измерение «комбинация»), и миллионы строк не должны замедлять фильтры
-   Журнала, которому нужны сотни.
+/* Grid experiment storage.
+   A separate file, data/grid.db: grid data has a different shape (no snapshots, but
+   a "combination" dimension), and millions of rows must not slow down the filters
+   of the journal, which needs hundreds.
 
-   Главное решение: контейнер-снапшот в сетке не собирается вовсе. 125 комбинаций
-   на одном событии рынка дали бы 125 контейнеров с практически одинаковыми
-   барами — 4,5 ГБ в сутки. Вместо контейнера хранится короткая строка: сигнал,
-   комбинация и оценка. График при надобности догружается с биржи через
-   существующий /api/market/klines?start. */
+   The key decision: the grid builds no snapshot container at all. 125 combinations
+   on one market event would produce 125 containers with practically identical
+   bars, 4.5 GB a day. Instead of a container a short row is stored: the signal,
+   the combination and the score. If needed, the chart is loaded from the exchange
+   through the existing /api/market/klines?start. */
 import Database from 'better-sqlite3';
 import path from 'node:path';
 import { dataDir } from '../db/index.js';
@@ -18,18 +18,18 @@ const db: Database.Database = new Database(gridDbFile);
 db.pragma('journal_mode = WAL');
 db.exec(`
 CREATE TABLE IF NOT EXISTS grid_signals (
-  formation_id  TEXT PRIMARY KEY,          -- profile#комбинация|exchange|market|symbol|tf|ts_A|dir
-  profile       TEXT NOT NULL,             -- базовый профиль = эксперимент
-  combo         TEXT NOT NULL,             -- имя комбинации целиком
+  formation_id  TEXT PRIMARY KEY,          -- profile#combination|exchange|market|symbol|tf|ts_A|dir
+  profile       TEXT NOT NULL,             -- base profile = experiment
+  combo         TEXT NOT NULL,             -- full combination name
   k1            REAL NOT NULL,
   k2            REAL NOT NULL,
   search_range  INTEGER NOT NULL,
   symbol        TEXT NOT NULL,
   tf            TEXT NOT NULL,
   dir           TEXT NOT NULL,
-  entered_at    INTEGER NOT NULL,          -- момент сигнала
-  entry_price   REAL NOT NULL,             -- цена сигнала
-  score         INTEGER,                   -- 0..4, NULL пока не зафиксирована
+  entered_at    INTEGER NOT NULL,          -- signal moment
+  entry_price   REAL NOT NULL,             -- signal price
+  score         INTEGER,                   -- 0..4, NULL until final
   scored_at     INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_grid_combo ON grid_signals(profile, combo, score);
@@ -52,7 +52,7 @@ export function insertSignal(s: GridSignal): void {
   insSignal.run(s);
 }
 
-/* какие паттерны сетки уже записаны — чтобы после перезапуска не задваивать */
+/* which grid patterns are already recorded, so they aren't duplicated after a restart */
 export function signalIds(): Set<string> {
   return new Set((db.prepare(`SELECT formation_id FROM grid_signals`).all() as Array<{ formation_id: string }>).map(r => r.formation_id));
 }
@@ -64,11 +64,11 @@ export function setScore(formationId: string, score: number, scoredAt: number): 
 
 export const tx = db.transaction((fn: () => void) => { fn(); });
 
-/* Агрегат по комбинациям: распределение оценок для каждой.
-   Считается запросом на лету, а не отдельной таблицей: 125 строк по индексу
-   берутся мгновенно, а таблица-агрегат потребовала бы синхронизации.
-   Счётчики через CASE, а не SUM(score = N): у комбинации без единой оценки
-   SUM по одним NULL вернул бы NULL, и тепловая карта получила бы дыры. */
+/* Per-combination aggregate: the score distribution for each one.
+   Computed by a query on the fly rather than kept in a table: 125 rows by index
+   come back instantly, while an aggregate table would need syncing.
+   Counters use CASE rather than SUM(score = N): for a combination without a single score,
+   SUM over NULLs alone would return NULL, and the heat map would get holes. */
 export interface ComboStats {
   combo: string; k1: number; k2: number; search_range: number;
   n: number; pending: number;
@@ -106,8 +106,8 @@ export function stats(): { signals: number; scored: number; profiles: string[]; 
   };
 }
 
-/* удаление эксперимента целиком — неудачный прогон выбрасывается, не задевая
-   ни рабочий журнал, ни другие эксперименты */
+/* delete a whole experiment: a failed run is thrown away without touching
+   either the main journal or other experiments */
 export function dropProfile(profile: string): number {
   return db.prepare(`DELETE FROM grid_signals WHERE profile=?`).run(profile).changes;
 }

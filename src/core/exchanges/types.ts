@@ -1,13 +1,13 @@
-/* Нормализованные типы рыночных данных */
+/* Normalized market data types */
 
 export interface Kline {
-  t: number;  // время открытия бара, unix ms
+  t: number;  // bar open time, unix ms
   o: number;
   h: number;
   l: number;
   c: number;
-  v: number;  // объём в базовой валюте
-  q: number;  // объём в котируемой (USDT)
+  v: number;  // volume in the base asset
+  q: number;  // volume in the quote asset (USDT)
 }
 
 export interface Instrument {
@@ -20,8 +20,8 @@ export interface Instrument {
 export interface Ticker {
   symbol: string;
   price: number;
-  chg: number;   // изменение за 24ч, %
-  vol: number;   // оборот за 24ч, USDT
+  chg: number;   // 24h change, %
+  vol: number;   // 24h turnover, USDT
 }
 
 export type TF = '1m' | '5m' | '15m' | '30m' | '1H' | '4H' | '1D';
@@ -33,7 +33,7 @@ export const TF_MS: Record<TF, number> = {
 };
 
 export interface ExchangeAdapter {
-  id: string;                       // 'binance-futures' и т.п.
+  id: string;                       // 'binance-futures' etc.
   exchange: string;                 // 'binance' | 'bybit'
   market: string;                   // 'futures' | 'spot'
   ping(): Promise<{ ms: number }>;

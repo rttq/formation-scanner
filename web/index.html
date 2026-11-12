@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FORMATION SCANNER · журнал</title>
+<title>FORMATION SCANNER · journal</title>
 <style>
   :root{
     --bg:#0c0d0f; --panel:#131418; --filter:#15161b; --card:#181818;
@@ -43,7 +43,7 @@
   .dot.ok{background:var(--up); box-shadow:0 0 5px var(--up)}
   .dot.err{background:var(--down); box-shadow:0 0 5px var(--down)}
 
-  /* сводная статистика */
+  /* summary stats */
   .stats{display:flex; gap:22px; padding:8px 12px; border-bottom:1px solid var(--line2);
     font-size:11px; flex-wrap:wrap}
   .stats .s{color:var(--muted)} .stats .s b{color:var(--txt); font-weight:500; margin-left:5px}
@@ -51,7 +51,7 @@
   .star{color:var(--amber); letter-spacing:1px}
   .dimstar{color:var(--dim); letter-spacing:1px}
 
-  /* таблица журнала */
+  /* journal table */
   .tblwrap{flex:1 1 auto; overflow:auto}
   table{width:100%; border-collapse:collapse; font-size:11.5px}
   thead th{position:sticky; top:0; background:var(--panel); color:var(--muted); font-weight:500;
@@ -64,7 +64,7 @@
   tbody tr:hover{background:var(--accent-bg)}
   .empty{padding:50px; text-align:center; color:var(--muted)}
 
-  /* ═══ Просмотрщик снапшота ═══ */
+  /* ═══ Snapshot viewer ═══ */
   .viewer{position:fixed; inset:0; background:var(--bg); display:none; flex-direction:column; z-index:10}
   .viewer.show{display:flex}
   .vhead{display:flex; align-items:center; gap:12px; padding:8px 12px; border-bottom:1px solid var(--line); flex-wrap:wrap}
@@ -91,35 +91,35 @@
 <header>
   <div class="bar">
     <span class="title">FORMATION SCANNER</span>
-    <span class="lbl">ЖУРНАЛ СИГНАЛОВ</span>
+    <span class="lbl">SIGNAL JOURNAL</span>
     <div class="status">
       <span class="stat"><span class="dot" id="engDot"></span><b id="engTxt">…</b></span>
-      <span class="stat">под скорингом <b id="stScoring">—</b></span>
-      <span class="stat">наблюдается <b id="stOpen">—</b></span>
-      <span class="stat">всего сигналов <b id="stTotal">—</b></span>
+      <span class="stat">scoring <b id="stScoring">—</b></span>
+      <span class="stat">open <b id="stOpen">—</b></span>
+      <span class="stat">total signals <b id="stTotal">—</b></span>
     </div>
   </div>
   <div class="bar">
-    <span class="lbl">ФИЛЬТРЫ</span>
-    <div class="ctl"><span class="lbl">СТАТУС</span>
-      <select id="fStatus"><option value="">все</option><option value="open">open</option><option value="closed">closed</option></select>
+    <span class="lbl">FILTERS</span>
+    <div class="ctl"><span class="lbl">STATUS</span>
+      <select id="fStatus"><option value="">all</option><option value="open">open</option><option value="closed">closed</option></select>
     </div>
-    <div class="ctl"><span class="lbl">НАПР</span>
-      <select id="fDir"><option value="">все</option><option value="long">long</option><option value="short">short</option></select>
+    <div class="ctl"><span class="lbl">DIR</span>
+      <select id="fDir"><option value="">all</option><option value="long">long</option><option value="short">short</option></select>
     </div>
-    <div class="ctl"><span class="lbl">ОЦЕНКА</span>
+    <div class="ctl"><span class="lbl">SCORE</span>
       <select id="fScore">
-        <option value="">все</option><option value="pending">в процессе</option>
+        <option value="">all</option><option value="pending">pending</option>
         <option value="4">★★★★</option><option value="3">★★★</option>
         <option value="2">★★</option><option value="1">★</option><option value="0">0</option>
       </select>
     </div>
-    <div class="ctl"><span class="lbl">ТИКЕР</span><input id="fSymbol" class="num" placeholder="BTC…"></div>
-    <div class="ctl"><span class="lbl">ЛИМИТ</span>
+    <div class="ctl"><span class="lbl">SYMBOL</span><input id="fSymbol" class="num" placeholder="BTC…"></div>
+    <div class="ctl"><span class="lbl">LIMIT</span>
       <select id="fLimit"><option>200</option><option selected>500</option><option>1000</option></select>
     </div>
-    <button id="fApply" class="on">ПРИМЕНИТЬ</button>
-    <span class="hint">клик по строке — открыть снапшот · клик по заголовку — сортировка</span>
+    <button id="fApply" class="on">APPLY</button>
+    <span class="hint">click a row to open its snapshot · click a header to sort</span>
   </div>
 </header>
 
@@ -127,16 +127,16 @@
 <div class="tblwrap">
   <table>
     <thead id="thead"></thead>
-    <tbody id="tbody"><tr><td class="empty" colspan="12">загрузка…</td></tr></tbody>
+    <tbody id="tbody"><tr><td class="empty" colspan="12">loading…</td></tr></tbody>
   </table>
 </div>
 
-<!-- Просмотрщик -->
+<!-- Viewer -->
 <div class="viewer" id="viewer">
   <div class="vhead">
-    <button id="vClose">✕ ЗАКРЫТЬ (Esc)</button>
-    <button id="vPrev">← ПРЕД</button>
-    <button id="vNext">СЛЕД →</button>
+    <button id="vClose">✕ CLOSE (Esc)</button>
+    <button id="vPrev">← PREV</button>
+    <button id="vNext">NEXT →</button>
     <div class="sep"></div>
     <span class="sym" id="vSym">—</span>
     <span id="vDir"></span>
@@ -144,11 +144,11 @@
     <div class="sep"></div>
     <div class="tftabs" id="vTfs"></div>
     <div class="tftabs" id="vSnaps" style="display:none">
-      <button id="vSnapSignal" class="on" title="контейнер на момент сигнала">СИГНАЛ</button>
-      <button id="vSnapScored" title="контейнер на момент фиксации оценки">ОЦЕНКА</button>
+      <button id="vSnapSignal" class="on" title="container at the signal">SIGNAL</button>
+      <button id="vSnapScored" title="container at the final score">SCORED</button>
     </div>
-    <button id="vAfter" style="display:none" title="показать бары от сигнала до фиксации оценки">РАЗВИТИЕ</button>
-    <span class="hint" style="margin-left:auto">колесо — зум · перетаскивание — прокрутка</span>
+    <button id="vAfter" style="display:none" title="show bars from the signal to the final score">AFTER SIGNAL</button>
+    <span class="hint" style="margin-left:auto">wheel to zoom · drag to pan</span>
   </div>
   <div class="vbody">
     <div class="vchart"><canvas id="vCanvas"></canvas></div>

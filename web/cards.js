@@ -1,4 +1,4 @@
-/* Живой сканер: карточки паттернов в ожидании сигнала и наблюдений со стадией скоринга */
+/* Live scanner: cards for patterns awaiting a signal and for observations with their scoring stage */
 "use strict";
 const $ = id => document.getElementById(id);
 const cards = new Map();      // key -> {el, canvas, item}
@@ -6,22 +6,22 @@ let refreshing = false;
 
 const fmtPct = x => x == null ? '—' : (x > 0 ? '+' : '') + x.toFixed(2) + '%';
 const fmtVol = v => !isFinite(v) ? '—' : v >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v);
-const fmtTime = () => new Date().toLocaleTimeString('ru-RU', { hour12: false });
+const fmtTime = () => new Date().toLocaleTimeString();
 
-/* движение цены от сигнала в сторону сделки, % (не P&L — просто наблюдение) */
+/* price move from the signal in the trade direction, % (not P&L, just an observation) */
 function moveFromEntry(item) {
   if (!item.ticker || item.entry == null) return null;
   const p = item.ticker.price;
   return (item.dir === 'long' ? (p - item.entry) / item.entry : (item.entry - p) / item.entry) * 100;
 }
 
-/* бейдж: ожидание сигнала или стадия скоринга + движение от сигнала.
-   Промежуточные стадии задаёт гипотеза, поэтому печатается само имя стадии */
+/* badge: awaiting a signal, or the scoring stage + the move from the signal.
+   Intermediate stages are set by the hypothesis, so the stage name itself is printed */
 const midStage = st => st && st !== 'watch' && st !== 'final';
 function badgeText(item) {
-  if (item.kind === 'wait') return 'ЖДЁТ СИГНАЛА';
+  if (item.kind === 'wait') return 'AWAITING SIGNAL';
   const mv = moveFromEntry(item);
-  const st = midStage(item.stage) ? item.stage.toUpperCase() : 'СИГНАЛ';
+  const st = midStage(item.stage) ? item.stage.toUpperCase() : 'SIGNAL';
   return st + (mv == null ? '' : ' ' + fmtPct(mv));
 }
 function badgeClass(item) {
@@ -39,11 +39,11 @@ function buildCard(key, item) {
     `<canvas></canvas></div>` +
     `<div class="meta">` +
     `<div class="r1"><span class="sym">${item.symbol} · ${item.tf}</span><span class="price">${item.ticker ? item.ticker.price : '—'}</span></div>` +
-    `<div class="r2"><span class="muted">${item.kind === 'wait' ? 'без сигнала' : 'сигнал ' + item.entry}</span>` +
+    `<div class="r2"><span class="muted">${item.kind === 'wait' ? 'no signal yet' : 'signal ' + item.entry}</span>` +
     `<span class="${item.ticker && item.ticker.chg >= 0 ? 'up' : 'down'}">${item.ticker ? fmtPct(item.ticker.chg) : ''}</span>` +
     `<span class="muted">${item.ticker ? fmtVol(item.ticker.vol) : ''}</span></div>` +
     `</div>`;
-  el.onclick = () => window.open('https://www.binance.com/ru/futures/' + item.symbol, '_blank', 'noopener');
+  el.onclick = () => window.open('https://www.binance.com/en/futures/' + item.symbol, '_blank', 'noopener');
   const ref = { el, canvas: el.querySelector('canvas'), item, loadedKey: null };
   cards.set(key, ref);
   return ref;
@@ -52,7 +52,7 @@ function buildCard(key, item) {
 function overlaysFor(ref) {
   const it = ref.item;
   const levels = [];
-  /* точки и уровни паттерна */
+  /* pattern points and levels */
   if (it.A && it.B && it.levels) {
     levels.push(
       { price: it.A.p, fromTs: it.A.t, color: '#6b6d75', label: 'A' },
@@ -62,8 +62,8 @@ function overlaysFor(ref) {
       { price: it.levels.k3, fromTs: it.A.t, color: '#DD8836', label: 'k3', labelBelow: true },
     );
   }
-  if (it.entry != null) levels.push({ price: it.entry, color: '#56b6c2', dash: false, label: 'СИГ' });
-  /* белая стрелка над баром сигнала */
+  if (it.entry != null) levels.push({ price: it.entry, color: '#56b6c2', dash: false, label: 'SIG' });
+  /* white arrow above the signal bar */
   const marks = it.kind !== 'wait' && it.enteredAt != null ? [{ ts: it.enteredAt }] : [];
   return { levels, marks };
 }
@@ -77,7 +77,7 @@ async function loadChart(ref) {
     if (ref.loadedKey === key) { Chart.setData(ref.canvas, r.klines, overlaysFor(ref), r.klines.length); return; }
     ref.loadedKey = key;
     Chart.setData(ref.canvas, r.klines, overlaysFor(ref), r.klines.length);
-  } catch { /* одиночный сбой карточки не критичен */ }
+  } catch { /* a single card failing is not critical */ }
 }
 
 async function refresh() {
@@ -86,19 +86,19 @@ async function refresh() {
   try {
     const s = await (await fetch('/api/scanner/state')).json();
     $('dot').className = 'dot ' + (s.running ? 'ok' : 'err');
-    $('engTxt').textContent = s.running ? 'движок работает' : 'движок остановлен';
+    $('engTxt').textContent = s.running ? 'engine running' : 'engine stopped';
     $('cOpen').textContent = s.open.length;
     $('cWait').textContent = (s.waiting || []).length;
     $('ts').textContent = fmtTime();
 
-    /* сигналы (свежие первыми), затем паттерны в ожидании сигнала */
+    /* signals (newest first), then patterns awaiting a signal */
     const items = s.open.sort((a, b) => b.enteredAt - a.enteredAt)
       .map(x => ({ key: 'o' + x.entryId, item: x }))
       .concat((s.waiting || []).sort((a, b) => b.detectedAt - a.detectedAt)
         .map(x => ({ key: 'w' + x.id, item: { ...x, kind: 'wait' } })));
     const grid = $('grid');
     if (!items.length) {
-      grid.innerHTML = '<div class="empty">паттернов нет — движок сканирует рынок</div>';
+      grid.innerHTML = '<div class="empty">no patterns yet: the engine is scanning the market</div>';
       cards.clear();
       refreshing = false;
       return;
@@ -124,13 +124,13 @@ async function refresh() {
       grid.appendChild(ref.el);
       loadChart(ref);
     }
-  } catch { $('dot').className = 'dot err'; $('engTxt').textContent = 'нет связи'; }
+  } catch { $('dot').className = 'dot err'; $('engTxt').textContent = 'no connection'; }
   refreshing = false;
 }
 
-/* ── скан-профили (перенесены из Настроек) ─────────────────────
-   таблица грузится при открытии панели и по явным действиям — таймер
-   обновления карточек её не трогает, чтобы не стирать ввод */
+/* ── scan profiles (moved here from Settings) ──────────────────
+   the table loads when the panel opens and on explicit actions; the card
+   refresh timer doesn't touch it, so typed input isn't wiped */
 const TFS = ['1m', '5m', '15m', '30m', '1H', '4H', '1D'];
 const api = {
   get: async u => (await fetch(u)).json(),
@@ -164,7 +164,7 @@ async function loadProfiles() {
     <td><input class="num pStl" type="number" min="1" value="${p.params.score_ttl_bars}"></td>
     <td><input class="num pTop" type="number" min="0" value="${p.params.top_n}"></td>
     <td><input class="num pVol" type="number" min="0" step="100000" value="${p.params.min_vol24}"></td>
-    <td><button class="pSave on">СОХРАНИТЬ</button></td>
+    <td><button class="pSave on">SAVE</button></td>
     <td><button class="pDel danger">✕</button></td>
   </tr>`).join('');
   $('profTable').querySelectorAll('tbody tr').forEach(tr => {
@@ -172,7 +172,7 @@ async function loadProfiles() {
     tr.querySelector('.pSave').onclick = async () => {
       const k = c => parseFloat(tr.querySelector(c).value);
       const k1 = k('.pK1'), k2 = k('.pK2'), k3 = k('.pK3');
-      if (![k1, k2, k3].every(x => x > 0)) return toast('коэффициенты должны быть больше нуля', true);
+      if (![k1, k2, k3].every(x => x > 0)) return toast('coefficients must be greater than zero', true);
       await api.put('/api/profiles/' + encodeURIComponent(name), {
         enabled: tr.querySelector('.pEn').checked,
         tf: tr.querySelector('.pTf').value,
@@ -184,26 +184,26 @@ async function loadProfiles() {
       });
       await engineRestart();
       refresh();
-      toast('профиль «' + name + '» сохранён, движок перезапущен');
+      toast('profile "' + name + '" saved, engine restarted');
     };
     tr.querySelector('.pDel').onclick = async () => {
-      if (!confirm('Удалить профиль «' + name + '»?')) return;
+      if (!confirm('Delete profile "' + name + '"?')) return;
       await api.del('/api/profiles/' + encodeURIComponent(name));
       await engineRestart();
       loadProfiles();
       refresh();
-      toast('профиль удалён');
+      toast('profile deleted');
     };
   });
 }
 $('btnAddProf').onclick = async () => {
   const name = $('newProfName').value.trim();
-  if (!name) return toast('введите имя профиля', true);
-  if (profiles.some(p => p.name === name)) return toast('такой профиль уже есть', true);
+  if (!name) return toast('enter a profile name', true);
+  if (profiles.some(p => p.name === name)) return toast('this profile already exists', true);
   await api.put('/api/profiles/' + encodeURIComponent(name), { enabled: false });
   $('newProfName').value = '';
   loadProfiles();
-  toast('профиль создан (выключен) — настройте и включите');
+  toast('profile created (disabled): configure and enable it');
 };
 $('profToggle').onclick = () => {
   const p = $('profPanel');

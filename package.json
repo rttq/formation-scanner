@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Сканер паттернов на фьючерсах Binance: журнал сигналов, скоринг, снапшоты контекста, сетка параметров",
+  "description": "Pattern scanner for Binance futures: signal journal, scoring, context snapshots, parameter grid",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",

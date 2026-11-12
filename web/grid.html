@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FORMATION SCANNER · сетка</title>
+<title>FORMATION SCANNER · grid</title>
 <style>
   :root{
     --bg:#0c0d0f; --panel:#131418; --line:#25262c; --line2:#1a1b20;
@@ -45,7 +45,7 @@
   .rng{display:flex; align-items:center; gap:5px}
   .rng .lbl{width:52px}
 
-  /* ── оценка стоимости: не график, а плитки чисел ── */
+  /* ── cost estimate: number tiles, not a chart ── */
   .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:1px;
     background:var(--line2); border:1px solid var(--line2); border-radius:3px; overflow:hidden}
   .tile{background:var(--panel); padding:9px 11px}
@@ -53,11 +53,11 @@
   .tile .v{font-size:16px; color:var(--txt); margin-top:3px}
   .tile .v.warn{color:var(--amber)}
 
-  /* ── тепловая карта ──
-     Величина кодируется ОДНИМ тоном (--accent) через насыщенность: ноль = фон
-     панели, максимум = полный акцент. Радуги нет намеренно — у последовательной
-     шкалы порядок должен читаться сам, без легенды-словаря. Значение в ячейке
-     напечатано числом, поэтому карта читается и без цвета вообще. */
+  /* ── heat map ──
+     The value is encoded by ONE hue (--accent) through saturation: zero = panel
+     background, maximum = full accent. No rainbow on purpose: a sequential scale
+     must show its order by itself, without a lookup legend. The cell value is
+     printed as a number, so the map reads even without color. */
   table.heat{width:auto; border-collapse:separate; border-spacing:2px}
   table.heat th{border:none; padding:3px 7px; text-align:center}
   table.heat th.rh{text-align:right}
@@ -68,7 +68,7 @@
   td.cell .c .n{font-size:9.5px; color:var(--muted); margin-top:2px}
   td.cell .c:hover{border-color:var(--accent)}
   td.cell .c.sel{border-color:#fff}
-  td.cell .c.thin{background:var(--line2) !important}      /* выборки мало — цвету верить нельзя */
+  td.cell .c.thin{background:var(--line2) !important}      /* too few samples: don't trust the color */
   td.cell .c.thin .m{color:var(--dim)}
   td.cell .c.empty{background:transparent !important; cursor:default}
   td.cell .c.empty .m{color:var(--dim)}
@@ -89,66 +89,66 @@
 <header>
   <div class="bar">
     <span class="title">FORMATION SCANNER</span>
-    <span class="lbl">СЕТКА</span>
+    <span class="lbl">GRID</span>
     <span id="engState" class="lbl">…</span>
   </div>
 </header>
 <main>
 
 <section>
-  <h2>ЭКСПЕРИМЕНТ</h2>
+  <h2>EXPERIMENT</h2>
   <div class="row">
-    <span class="lbl">ИМЯ</span><input id="expName" value="grid" style="width:110px">
-    <span class="lbl">ТФ</span><select id="expTf"></select>
-    <span class="lbl">МОНЕТ ТОП</span><input id="expTop" class="num" type="number" min="1" max="500" value="150">
+    <span class="lbl">NAME</span><input id="expName" value="grid" style="width:110px">
+    <span class="lbl">TF</span><select id="expTf"></select>
+    <span class="lbl">TOP COINS</span><input id="expTop" class="num" type="number" min="1" max="500" value="150">
     <span class="lbl">k3</span><input id="expK3" class="num" type="number" step="0.01" value="0.1">
-    <span class="lbl">TTL, баров</span><input id="expTtl" class="num" type="number" min="1" max="500" value="20">
+    <span class="lbl">TTL, bars</span><input id="expTtl" class="num" type="number" min="1" max="500" value="20">
   </div>
   <div class="row">
-    <span class="rng"><span class="lbl">k1</span> от <input id="k1From" class="num" type="number" step="0.01" value="0.5">
-      до <input id="k1To" class="num" type="number" step="0.01" value="0.7">
-      шаг <input id="k1Step" class="num" type="number" step="0.01" value="0.1"> <span id="k1N" class="lbl"></span></span>
+    <span class="rng"><span class="lbl">k1</span> from <input id="k1From" class="num" type="number" step="0.01" value="0.5">
+      to <input id="k1To" class="num" type="number" step="0.01" value="0.7">
+      step <input id="k1Step" class="num" type="number" step="0.01" value="0.1"> <span id="k1N" class="lbl"></span></span>
   </div>
   <div class="row">
-    <span class="rng"><span class="lbl">k2</span> от <input id="k2From" class="num" type="number" step="0.01" value="0.2">
-      до <input id="k2To" class="num" type="number" step="0.01" value="0.4">
-      шаг <input id="k2Step" class="num" type="number" step="0.01" value="0.1"> <span id="k2N" class="lbl"></span></span>
+    <span class="rng"><span class="lbl">k2</span> from <input id="k2From" class="num" type="number" step="0.01" value="0.2">
+      to <input id="k2To" class="num" type="number" step="0.01" value="0.4">
+      step <input id="k2Step" class="num" type="number" step="0.01" value="0.1"> <span id="k2N" class="lbl"></span></span>
   </div>
   <div class="row">
-    <span class="rng"><span class="lbl">ОКНО</span> от <input id="rFrom" class="num" type="number" value="40">
-      до <input id="rTo" class="num" type="number" value="80">
-      шаг <input id="rStep" class="num" type="number" value="20"> <span id="rN" class="lbl"></span></span>
+    <span class="rng"><span class="lbl">WINDOW</span> from <input id="rFrom" class="num" type="number" value="40">
+      to <input id="rTo" class="num" type="number" value="80">
+      step <input id="rStep" class="num" type="number" value="20"> <span id="rN" class="lbl"></span></span>
   </div>
 
   <div class="tiles" id="est"></div>
 
   <div class="row" style="margin-top:12px">
-    <button id="btnLaunch" class="on">ЗАПУСТИТЬ СБОР</button>
-    <button id="btnStopExp">ВЫКЛЮЧИТЬ</button>
-    <button id="btnDrop" class="danger">УДАЛИТЬ ДАННЫЕ ЭКСПЕРИМЕНТА</button>
+    <button id="btnLaunch" class="on">START COLLECTING</button>
+    <button id="btnStopExp">STOP</button>
+    <button id="btnDrop" class="danger">DELETE EXPERIMENT DATA</button>
     <span id="expState" class="lbl"></span>
   </div>
   <div class="hint">
-    Сбор идёт вперёд по живому рынку: комбинации сканируются теми же барами, что и рабочий профиль,
-    поэтому размер сетки на нагрузку к бирже не влияет — влияет только число монет и ТФ.
-    Снапшоты у комбинаций не собираются, в базу эксперимента пишется короткая строка.
-    Оценки ниже считаются по демо-множителям из grid.js — замените их замерами своей гипотезы.
+    Data is collected forward on the live market: combinations are scanned on the same bars as the main profile,
+    so the grid size doesn't affect the load on the exchange; only the number of coins and the TF do.
+    Combinations build no snapshots; a short row goes into the experiment database.
+    The estimates above use demo multipliers from grid.js: replace them with measurements of your own hypothesis.
   </div>
 </section>
 
 <section>
-  <h2>РЕЗУЛЬТАТ</h2>
+  <h2>RESULTS</h2>
   <div class="row">
-    <span class="lbl">МЕТРИКА</span><select id="metric">
-      <option value="p4">% оценки 4</option>
-      <option value="p34">% оценок 3–4</option>
-      <option value="avg">средняя оценка</option>
-      <option value="p0">% оценки 0</option>
-      <option value="n">N сигналов</option>
+    <span class="lbl">METRIC</span><select id="metric">
+      <option value="p4">% score 4</option>
+      <option value="p34">% score 3–4</option>
+      <option value="avg">average score</option>
+      <option value="p0">% score 0</option>
+      <option value="n">N signals</option>
     </select>
-    <span class="lbl">ОКНО</span><span id="rTabs" class="row" style="margin:0"></span>
-    <span class="lbl">МИН. С ОЦЕНКОЙ</span><input id="minN" class="num" type="number" min="0" value="30">
-    <button id="btnReload">ОБНОВИТЬ</button>
+    <span class="lbl">WINDOW</span><span id="rTabs" class="row" style="margin:0"></span>
+    <span class="lbl">MIN SCORED</span><input id="minN" class="num" type="number" min="0" value="30">
+    <button id="btnReload">REFRESH</button>
   </div>
 
   <div id="heat"></div>
@@ -157,16 +157,16 @@
 </section>
 
 <section>
-  <h2>ТОП КОМБИНАЦИЙ</h2>
+  <h2>TOP COMBINATIONS</h2>
   <div style="overflow-x:auto"><table id="top"><tbody></tbody></table></div>
   <div class="row" style="margin-top:12px">
-    <span class="lbl">ПЕРЕНЕСТИ В ПРОФИЛЬ</span>
+    <span class="lbl">COPY TO PROFILE</span>
     <select id="targetProfile"></select>
-    <button id="btnApply">ПРИМЕНИТЬ ВЫБРАННУЮ</button>
+    <button id="btnApply">APPLY SELECTED</button>
     <span id="selInfo" class="lbl"></span>
   </div>
   <div class="hint">
-    Кнопка пишет k1 / k2 / окно выбранной ячейки в рабочий скан-профиль и перезапускает движок.
+    The button writes k1 / k2 / window of the selected cell into the main scan profile and restarts the engine.
   </div>
 </section>
 

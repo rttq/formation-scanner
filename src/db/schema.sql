@@ -1,6 +1,6 @@
--- Схема БД сканера
+-- Scanner DB schema
 
--- Паттерны (все обнаруженные; регистрируются как armed, triggered ставится при сигнале)
+-- Patterns (all detected ones; registered as armed, set to triggered on a signal)
 CREATE TABLE IF NOT EXISTS formations (
   id            TEXT PRIMARY KEY,        -- profile|exchange|market|symbol|tf|tsA|dir
   exchange      TEXT NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS formations (
   price_B       REAL NOT NULL,
   ts_C          INTEGER NOT NULL,
   price_C       REAL NOT NULL,
-  k1            REAL NOT NULL,           -- коэффициенты уровней профиля
+  k1            REAL NOT NULL,           -- profile level coefficients
   k2            REAL NOT NULL,
   k3            REAL NOT NULL,
   search_range  INTEGER NOT NULL,
@@ -22,17 +22,17 @@ CREATE TABLE IF NOT EXISTS formations (
   detected_at   INTEGER NOT NULL,
   resolved_at   INTEGER,
   cancel_reason TEXT,
-  -- скоринг
+  -- scoring
   score            INTEGER,                          -- 0..4
-  score_stage      TEXT NOT NULL DEFAULT 'watch',    -- стадии задаёт гипотеза; final — оценка зафиксирована
-  score_signal_at  INTEGER,                          -- момент сигнала
-  scored_at        INTEGER,                          -- финализация оценки
-  score_seen_until INTEGER,                          -- закрытие последнего обработанного бара
-  score_ttl_bars   INTEGER                           -- TTL скоринга (копия из профиля на момент обнаружения)
+  score_stage      TEXT NOT NULL DEFAULT 'watch',    -- stages are set by the hypothesis; final = the score is final
+  score_signal_at  INTEGER,                          -- signal moment
+  scored_at        INTEGER,                          -- moment the score became final
+  score_seen_until INTEGER,                          -- close of the last processed bar
+  score_ttl_bars   INTEGER                           -- scoring TTL (copied from the profile at detection time)
 );
 CREATE INDEX IF NOT EXISTS idx_formations_status ON formations(status, symbol);
 
--- Наблюдения: создаются на сигнале, завершаются фиксацией оценки (exit_reason = scored)
+-- Observations: created on a signal, closed when the score becomes final (exit_reason = scored)
 CREATE TABLE IF NOT EXISTS entries (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   formation_id   TEXT REFERENCES formations(id),
@@ -53,17 +53,17 @@ CREATE TABLE IF NOT EXISTS entries (
 );
 CREATE INDEX IF NOT EXISTS idx_entries_main ON entries(symbol, dir, status, entered_at);
 
--- Снапшоты (1:1 к наблюдениям), тела — gzip(JSON)
+-- Snapshots (1:1 with observations), bodies are gzip(JSON)
 CREATE TABLE IF NOT EXISTS snapshots (
   entry_id       INTEGER PRIMARY KEY REFERENCES entries(id),
   schema_version INTEGER NOT NULL,
   captured_at    INTEGER NOT NULL,
-  body           BLOB NOT NULL,          -- контейнер на сигнале
-  body_after     BLOB,                   -- бары развития: от сигнала до фиксации оценки
-  body_scored    BLOB                    -- контейнер на фиксации оценки
+  body           BLOB NOT NULL,          -- container at the signal
+  body_after     BLOB,                   -- after-signal bars: from the signal to the final score
+  body_scored    BLOB                    -- container at the final score
 );
 
--- Скан-профили, настройки
+-- Scan profiles, settings
 CREATE TABLE IF NOT EXISTS scan_profiles (
   name       TEXT PRIMARY KEY,
   params     TEXT NOT NULL,              -- JSON

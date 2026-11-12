@@ -1,11 +1,11 @@
-/* Адаптер Binance USDT-M Futures. Публичные эндпоинты, ключи не требуются. */
+/* Binance USDT-M Futures adapter. Public endpoints, no keys required. */
 import { qFetch } from '../queue.js';
 import type { ExchangeAdapter, Instrument, Kline, Ticker, TF } from './types.js';
 
 const BASE = 'https://fapi.binance.com';
 const IV: Record<TF, string> = { '1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m', '1H': '1h', '4H': '4h', '1D': '1d' };
 
-/* кэш 30с — защита от повторных идентичных запросов */
+/* 30 s cache: protects against repeated identical requests */
 const cache = new Map<string, { ts: number; data: unknown }>();
 const CACHE_MS = 30_000;
 async function cFetch<T>(url: string): Promise<T> {
@@ -60,5 +60,5 @@ export const binanceFut: ExchangeAdapter = {
     return raw.map(k => ({ t: k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5], q: +k[7] }));
   },
 
-  tradeUrl(s: string) { return `https://www.binance.com/ru/futures/${s}`; },
+  tradeUrl(s: string) { return `https://www.binance.com/en/futures/${s}`; },
 };

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FORMATION SCANNER · настройки</title>
+<title>FORMATION SCANNER · settings</title>
 <style>
   :root{
     --bg:#0c0d0f; --panel:#131418; --line:#25262c; --line2:#1a1b20;
@@ -22,7 +22,7 @@
   a{color:var(--accent); text-decoration:none; font-size:11px; letter-spacing:.5px}
   main{max-width:1120px; margin:0 auto; padding:16px 14px}
   section{background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:14px 16px; margin-bottom:16px;
-    overflow-x:auto}  /* широкие таблицы прокручиваются внутри блока, а не вылезают за него */
+    overflow-x:auto}  /* wide tables scroll inside the block instead of overflowing it */
   h2{font-size:11px; letter-spacing:1.5px; color:var(--accent); margin:0 0 12px; font-weight:500}
   .hint{font-size:10.5px; color:var(--dim); margin-top:8px}
   input,select{background:var(--bg); border:1px solid var(--line); color:var(--txt);
@@ -53,78 +53,78 @@
 <header>
   <div class="bar">
     <span class="title">FORMATION SCANNER</span>
-    <span class="lbl">НАСТРОЙКИ</span>
+    <span class="lbl">SETTINGS</span>
   </div>
 </header>
 <main>
 
 <section id="secEngine">
-  <h2>ДВИЖОК</h2>
+  <h2>ENGINE</h2>
   <div class="row">
     <span id="engState">…</span>
-    <button id="btnStart">СТАРТ</button>
-    <button id="btnStop">СТОП</button>
-    <button id="btnRestart">ПЕРЕЗАПУСК</button>
-    <label style="font-size:11px;color:var(--muted)"><input type="checkbox" id="autostart"> автостарт с сервером</label>
+    <button id="btnStart">START</button>
+    <button id="btnStop">STOP</button>
+    <button id="btnRestart">RESTART</button>
+    <label style="font-size:11px;color:var(--muted)"><input type="checkbox" id="autostart"> autostart with the server</label>
   </div>
-  <div class="hint">Изменения интенсивности применяются к движку после перезапуска — кнопка «СОХРАНИТЬ» ниже делает его автоматически. Скан-профили редактируются на странице СКАНЕР.</div>
+  <div class="hint">Interval changes apply to the engine after a restart; the SAVE button below does it automatically. Scan profiles are edited on the LIVE page.</div>
 </section>
 
 <section id="secSnapshot">
-  <h2>ГЛУБИНА СНАПШОТА (таймфрейм → баров)</h2>
+  <h2>SNAPSHOT DEPTH (timeframe → bars)</h2>
   <div id="snapRows"></div>
   <div class="row" style="margin-top:8px">
-    <button id="btnSnapAdd">+ ТФ</button>
-    <button id="btnSnapSave" class="on">СОХРАНИТЬ</button>
-    <span class="hint">Применяется к новым входам сразу, без перезапуска. 1H×480 = 20 дней контекста.</span>
+    <button id="btnSnapAdd">+ TF</button>
+    <button id="btnSnapSave" class="on">SAVE</button>
+    <span class="hint">Applies to new observations right away, no restart. 1H×480 = 20 days of context.</span>
   </div>
 </section>
 
 <section id="secKeys">
-  <h2>ПРИВАТНЫЕ API-КЛЮЧИ</h2>
+  <h2>PRIVATE API KEYS</h2>
   <table id="keysTable" style="margin-bottom:10px">
-    <thead><tr><th>БИРЖА</th><th>КЛЮЧ</th><th>СОХРАНЁН</th><th>ПРОВЕРКА</th><th></th><th></th></tr></thead>
+    <thead><tr><th>EXCHANGE</th><th>KEY</th><th>SAVED</th><th>CHECK</th><th></th><th></th></tr></thead>
     <tbody></tbody>
   </table>
   <div class="row">
     <select id="keyExchange"><option value="binance">binance</option></select>
     <input class="name" id="keyApi" placeholder="API Key" style="width:280px" autocomplete="off">
     <input class="name" id="keySecret" type="password" placeholder="API Secret" style="width:280px" autocomplete="off">
-    <button id="btnKeySave" class="on">СОХРАНИТЬ</button>
+    <button id="btnKeySave" class="on">SAVE</button>
   </div>
   <div class="hint">
-    Ключи шифруются (AES-256-GCM) и хранятся только на этом компьютере в <code>data/config/</code>; фронтенду отдаётся только маска.
-    Приложение не торгует — создавайте ключ <b>только для чтения</b>, без прав на торговлю и вывод средств.
-    Кнопка «ПРОВЕРИТЬ» делает один подписанный запрос к бирже и показывает статус ключа.
+    Keys are encrypted (AES-256-GCM) and stored only on this computer in <code>data/config/</code>; the frontend only gets a mask.
+    The app doesn't trade: create a <b>read-only</b> key, without trading or withdrawal permissions.
+    The VERIFY button makes one signed request to the exchange and shows the key status.
   </div>
 </section>
 
 <section id="secIntensity">
-  <h2>ИНТЕНСИВНОСТЬ ОБНОВЛЕНИЙ</h2>
+  <h2>UPDATE INTERVALS</h2>
   <div class="grid2">
-    <div class="fld"><label>сопровождение позиций, сек</label><input class="num" id="itTrack" type="number" min="5"></div>
-    <div class="fld"><label>вселенная/тикеры, мин</label><input class="num" id="itUniverse" type="number" min="1"></div>
-    <div class="fld"><label>задержка скана после закрытия бара, сек</label><input class="num" id="itDelay" type="number" min="0"></div>
+    <div class="fld"><label>tracking, sec</label><input class="num" id="itTrack" type="number" min="5"></div>
+    <div class="fld"><label>universe/tickers refresh, min</label><input class="num" id="itUniverse" type="number" min="1"></div>
+    <div class="fld"><label>scan delay after bar close, sec</label><input class="num" id="itDelay" type="number" min="0"></div>
   </div>
-  <div class="row" style="margin-top:12px"><button id="btnItSave" class="on">СОХРАНИТЬ</button></div>
-  <div class="hint">Скан формаций всегда идёт по закрытию бара рабочего ТФ профиля. Кэш запросов 30с и адаптивная очередь защищают от лимитов биржи.</div>
+  <div class="row" style="margin-top:12px"><button id="btnItSave" class="on">SAVE</button></div>
+  <div class="hint">The pattern scan always runs at the bar close of the profile's pattern TF. A 30 s request cache and the adaptive queue protect against exchange limits.</div>
 </section>
 
 <section id="secDb">
-  <h2>БАЗА ДАННЫХ</h2>
-  <div class="grid2" id="dbStats"><span class="hint">загрузка…</span></div>
+  <h2>DATABASE</h2>
+  <div class="grid2" id="dbStats"><span class="hint">loading…</span></div>
   <div class="row" style="margin-top:12px">
-    <button id="btnDbRefresh">ОБНОВИТЬ</button>
-    <button id="btnVacuum">СЖАТЬ (VACUUM)</button>
-    <span class="lbl">УДАЛИТЬ ЗАВЕРШЁННОЕ СТАРШЕ</span>
+    <button id="btnDbRefresh">REFRESH</button>
+    <button id="btnVacuum">COMPACT (VACUUM)</button>
+    <span class="lbl">DELETE FINISHED OLDER THAN</span>
     <input class="num" id="dbDays" type="number" min="1" value="30">
-    <span class="lbl">ДНЕЙ</span>
-    <button id="btnCleanup" class="danger">ОЧИСТИТЬ</button>
+    <span class="lbl">DAYS</span>
+    <button id="btnCleanup" class="danger">CLEAN UP</button>
   </div>
   <div class="hint">
-    Очистка удаляет закрытые наблюдения со снапшотами и отработавшие формации старше порога; открытые наблюдения,
-    armed-формации и их данные не трогаются, движок продолжает работать. VACUUM переносит WAL в базу и сжимает файл
-    (движок на время операции ставится на паузу и запускается обратно). После большой очистки нажмите VACUUM, чтобы вернуть место на диске.
+    Cleanup deletes closed observations with their snapshots and resolved patterns older than the threshold; open observations,
+    armed patterns and their data are left alone, and the engine keeps running. VACUUM moves the WAL into the database and compacts the file
+    (the engine is paused for the operation and started again). After a big cleanup, press VACUUM to get the disk space back.
   </div>
 </section>
 

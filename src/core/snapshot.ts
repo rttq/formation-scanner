@@ -1,5 +1,5 @@
-/* Snapshot Builder: собирает дата-контейнер и жмёт в gzip.
-   Снапшоты собираются дважды — на сигнале и на фиксации оценки скоринга. */
+/* Snapshot builder: assembles the data container and gzips it.
+   Snapshots are built twice: at the signal and when the score becomes final. */
 import { gzipSync, gunzipSync } from 'node:zlib';
 import type { ExchangeAdapter, Instrument, Kline, Ticker, TF } from './exchanges/types.js';
 import { TF_MS } from './exchanges/types.js';
@@ -7,7 +7,7 @@ import type { ProfileParams, SnapshotTfCfg } from './config.js';
 import { SNAPSHOT_SCHEMA_VERSION } from './config.js';
 import type { Levels } from './detector.js';
 
-/* лёгкое описание паттерна: только цены/время точек (без индексов баров) */
+/* light pattern description: only point prices/times (no bar indexes) */
 export interface PatternInfo {
   tf: TF; dir: 'long' | 'short';
   A: { p: number; t: number }; B: { p: number; t: number }; C: { p: number; t: number };
@@ -28,7 +28,7 @@ export interface SnapshotBody {
     levels: Levels;
   };
   entry: { price: number; ts: number; side: 'long' | 'short' };
-  /* итог скоринга — только в снапшоте kind='scored' */
+  /* scoring result: only in a kind='scored' snapshot */
   scored?: ScoredInfo;
   scan_profile: { name: string; params: ProfileParams };
   snapshot_config: SnapshotTfCfg[];
@@ -50,7 +50,7 @@ export async function buildSnapshot(args: {
   const { adapter, instrument, ticker, pattern, entry, cfg } = args;
   const now = Date.now();
 
-  /* мульти-ТФ бары: то, что видно в момент сборки; последний бар может быть формирующимся */
+  /* multi-TF bars: what is visible at build time; the last bar may still be forming */
   const klines: SnapshotBody['klines'] = {};
   await Promise.all(cfg.map(async ({ tf, bars }) => {
     try {
@@ -58,7 +58,7 @@ export async function buildSnapshot(args: {
       klines[tf] = kl.map((k, i) =>
         i === kl.length - 1 && k.t + TF_MS[tf] > now ? { ...k, forming: true } : k
       );
-    } catch { /* недоступный ТФ не должен срывать запись — блок просто отсутствует */ }
+    } catch { /* an unavailable TF must not break the record: its block is just missing */ }
   }));
 
   const body: SnapshotBody = {
@@ -91,8 +91,8 @@ export function decodeSnapshot(gz: Buffer): SnapshotBody {
   return JSON.parse(gunzipSync(gz).toString('utf8')) as SnapshotBody;
 }
 
-/* ── дозапись «после сигнала» ────────────────────────────────── */
-/* бары рабочего ТФ строго от бара сигнала до бара фиксации оценки, без хвоста */
+/* ── after-signal add-on ─────────────────────────────────────── */
+/* pattern-TF bars strictly from the signal bar to the bar where the score became final, no tail */
 export interface AfterBody {
   schema_version: number;
   written_at: number;

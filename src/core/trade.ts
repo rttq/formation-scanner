@@ -1,8 +1,8 @@
-/* Чистые функции наблюдения: экскурсии MFE/MAE от цены сигнала. Тестируемы без сети. */
+/* Pure observation functions: MFE/MAE excursions from the signal price. Testable without the network. */
 
 export type Dir = 'long' | 'short';
 
-/* Обновление MFE/MAE по диапазону [lo..hi]; значения в % (оба неотрицательные) */
+/* Update MFE/MAE over the range [lo..hi]; values in % (both non-negative) */
 export function updateExcursions(dir: Dir, entry: number, lo: number, hi: number,
   mfePct: number, maePct: number): { mfePct: number; maePct: number } {
   const fav = dir === 'long' ? (hi - entry) / entry * 100 : (entry - lo) / entry * 100;

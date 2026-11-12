@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FORMATION SCANNER · наблюдения</title>
+<title>FORMATION SCANNER · live</title>
 <style>
   :root{
     --bg:#0c0d0f; --panel:#131418; --card:#181818; --line:#25262c; --line2:#1a1b20;
@@ -61,7 +61,7 @@
   .grid-wrap::-webkit-scrollbar{width:9px}
   .grid-wrap::-webkit-scrollbar-thumb{background:#26282e; border-radius:5px}
 
-  /* панель скан-профилей (перенесена из Настроек) */
+  /* scan profiles panel (moved here from Settings) */
   #profPanel{display:none; border-bottom:1px solid var(--line); background:var(--panel);
     padding:10px 12px; overflow-x:auto}
   #profPanel table{width:100%; border-collapse:collapse; font-size:11.5px}
@@ -84,34 +84,34 @@
 <header>
   <div class="bar">
     <span class="title">FORMATION SCANNER</span>
-    <span class="lbl">ЖИВОЙ СКАНЕР — НАБЛЮДЕНИЯ ПОД СКОРИНГОМ</span>
+    <span class="lbl">LIVE SCANNER — OBSERVATIONS BEING SCORED</span>
     <div class="sep"></div>
-    <span class="lbl">СЕТКА</span><input id="cols" type="number" min="1" max="10" value="5">
-    <button id="refresh">ОБНОВИТЬ</button>
-    <button id="profToggle">ПРОФИЛИ</button>
+    <span class="lbl">COLUMNS</span><input id="cols" type="number" min="1" max="10" value="5">
+    <button id="refresh">REFRESH</button>
+    <button id="profToggle">PROFILES</button>
     <div class="status">
       <span class="stat"><span class="dot" id="dot"></span><b id="engTxt">…</b></span>
-      <span class="stat">ждут сигнала <b id="cWait">—</b></span>
-      <span class="stat">наблюдается <b id="cOpen">—</b></span>
-      <span class="stat">обновл. <b id="ts">—</b></span>
+      <span class="stat">awaiting signal <b id="cWait">—</b></span>
+      <span class="stat">open <b id="cOpen">—</b></span>
+      <span class="stat">updated <b id="ts">—</b></span>
     </div>
   </div>
 </header>
 <div id="profPanel">
   <table id="profTable">
     <thead><tr>
-      <th>ВКЛ</th><th>ИМЯ</th><th>ТФ</th><th>ОКНО, БАРЫ</th><th>k1</th><th>k2</th><th>k3</th><th>TTL ОЦЕНКИ</th>
-      <th>ТОП N</th><th>МИН. ОБЪЁМ 24Ч</th><th></th><th></th>
+      <th>ON</th><th>NAME</th><th>TF</th><th>WINDOW, BARS</th><th>k1</th><th>k2</th><th>k3</th><th>SCORE TTL</th>
+      <th>TOP N</th><th>MIN 24H VOL</th><th></th><th></th>
     </tr></thead>
     <tbody></tbody>
   </table>
   <div class="row">
-    <input class="name" id="newProfName" placeholder="имя нового профиля">
-    <button id="btnAddProf">+ ДОБАВИТЬ ПРОФИЛЬ</button>
+    <input class="name" id="newProfName" placeholder="new profile name">
+    <button id="btnAddProf">+ ADD PROFILE</button>
   </div>
-  <div class="hint">k1–k3 — коэффициенты уровней гипотезы. ТОП N и МИН. ОБЪЁМ 24Ч задают вселенную монет. Сохранение перезапускает движок.</div>
+  <div class="hint">k1–k3 are the hypothesis level coefficients. TOP N and MIN 24H VOL define the coin universe. Saving restarts the engine.</div>
 </div>
-<div class="grid-wrap"><div class="grid" id="grid"><div class="empty">загрузка…</div></div></div>
+<div class="grid-wrap"><div class="grid" id="grid"><div class="empty">loading…</div></div></div>
 <div id="toast"></div>
 <script src="/chart.js"></script>
 <script src="/cards.js"></script>

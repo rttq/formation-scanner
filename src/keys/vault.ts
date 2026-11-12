@@ -1,6 +1,6 @@
-/* Локальное хранилище приватных API-ключей.
-   Шифрование AES-256-GCM; мастер-ключ — случайные 32 байта в data/config/master.key.
-   Секреты не покидают машину и никогда не отдаются фронтенду (только маска). */
+/* Local storage for private API keys.
+   AES-256-GCM encryption; the master key is 32 random bytes in data/config/master.key.
+   Secrets never leave the machine and are never sent to the frontend (only a mask). */
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
@@ -19,8 +19,8 @@ function masterKey(): Buffer {
 interface StoredKey {
   iv: string;      // base64
   tag: string;     // base64, GCM auth tag
-  data: string;    // base64, шифртекст JSON {apiKey, apiSecret}
-  masked: string;  // для отображения
+  data: string;    // base64, ciphertext of JSON {apiKey, apiSecret}
+  masked: string;  // for display
   saved_at: number;
 }
 type Store = Record<string, StoredKey>;
@@ -56,7 +56,7 @@ export function getApiKey(exchange: string): { apiKey: string; apiSecret: string
     d.setAuthTag(Buffer.from(e.tag, 'base64'));
     const buf = Buffer.concat([d.update(Buffer.from(e.data, 'base64')), d.final()]);
     return JSON.parse(buf.toString('utf8')) as { apiKey: string; apiSecret: string };
-  } catch { return null; }   // мастер-ключ сменился/файл повреждён
+  } catch { return null; }   // master key changed / file corrupted
 }
 
 export function listApiKeys(): Array<{ exchange: string; masked: string; saved_at: number }> {

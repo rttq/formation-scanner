@@ -1,24 +1,24 @@
-/* Типы и дефолты настроек: скан-профили, снапшот, интенсивность.
-   Запись наблюдения создаётся на сигнале и завершается фиксацией оценки скоринга. */
+/* Settings types and defaults: scan profiles, snapshot, update intervals.
+   An observation record is created on a signal and closes when its score becomes final. */
 import type { TF } from './exchanges/types.js';
 import { validCoefs } from './detector.js';
 
-/* ── Скан-профиль ────────────────────────────────────────────── */
+/* ── Scan profile ────────────────────────────────────────────── */
 export interface ProfileParams {
   exchange: 'binance';
   market: 'futures';
-  tf: TF;                 // рабочий ТФ детектора
-  search_range: number;   // окно поиска, бары
-  k1: number;             // коэффициенты уровней: смысл задаёт гипотеза (src/core/detector.ts)
+  tf: TF;                 // pattern timeframe the detector runs on
+  search_range: number;   // search window, bars
+  k1: number;             // level coefficients: their meaning is set by the hypothesis (src/core/detector.ts)
   k2: number;
   k3: number;
-  score_ttl_bars: number; // TTL скоринга: баров наблюдения до финальной оценки
-  top_n: number;          // сканировать только N самых ликвидных (0 = все)
-  min_vol24: number;      // мин. оборот 24ч в USDT (0 = выкл)
-  grid: GridSpec | null;  // диапазоны для перебора комбинаций (null = обычный профиль)
+  score_ttl_bars: number; // scoring TTL: bars of observation before the final score
+  top_n: number;          // scan only the N most liquid symbols (0 = all)
+  min_vol24: number;      // min 24h turnover in USDT (0 = off)
+  grid: GridSpec | null;  // ranges for sweeping combinations (null = regular profile)
 }
 
-/* Демо-значения: гипотеза и её параметры остаются на пользователе */
+/* Demo values: the hypothesis and its parameters are up to the user */
 export const PROFILE_DEFAULTS: ProfileParams = {
   exchange: 'binance',
   market: 'futures',
@@ -34,7 +34,7 @@ export const PROFILE_DEFAULTS: ProfileParams = {
 };
 
 export function profileWithDefaults(p: Partial<ProfileParams> | null | undefined): ProfileParams {
-  /* берём только известные ключи — лишние поля отбрасываются */
+  /* take known keys only: extra fields are dropped */
   const out = { ...PROFILE_DEFAULTS };
   if (p) for (const k of Object.keys(PROFILE_DEFAULTS) as Array<keyof ProfileParams>) {
     if (p[k] !== undefined) (out as Record<string, unknown>)[k] = p[k];
@@ -42,11 +42,11 @@ export function profileWithDefaults(p: Partial<ProfileParams> | null | undefined
   return out;
 }
 
-/* ── Сетка настроек ──────────────────────────────────────────
-   Профиль с диапазонами разворачивается в набор комбинаций. Одна закачка баров
-   обслуживает всю сетку: детектор читает массив с конца и берёт только последние
-   search_range баров, поэтому лишние бары в начале не меняют результат.
-   Имя комбинации входит в formation.id, поэтому записи комбинаций не сливаются. */
+/* ── Parameter grid ──────────────────────────────────────────
+   A profile with ranges expands into a set of combinations. One bar download
+   serves the whole grid: the detector reads the array from the end and takes only
+   the last search_range bars, so extra bars at the start don't change the result.
+   The combination name is part of formation.id, so combination records never merge. */
 export type GridRange = [from: number, to: number, step: number];
 export interface GridSpec { k1?: GridRange; k2?: GridRange; search_range?: GridRange }
 export interface Combo { name: string; params: ProfileParams }
@@ -55,13 +55,13 @@ export const MAX_GRID_COMBOS = 500;
 
 const r3 = (x: number): number => Math.round(x * 1000) / 1000;
 
-/* значения диапазона [от, до, шаг]; отсутствует или невалиден → одно значение профиля */
+/* values of a [from, to, step] range; missing or invalid → the single profile value */
 function gridValues(r: GridRange | undefined, def: number): number[] {
   if (!Array.isArray(r)) return [def];
   const [from, to, step] = r;
   if (![from, to, step].every(Number.isFinite) || !(step > 0) || to < from) return [def];
   const out: number[] = [];
-  /* допуск в микрошаг: 0.1 + 0.1×2 = 0.30000000000000004 иначе теряет последнее значение */
+  /* micro-step tolerance: otherwise 0.1 + 0.1×2 = 0.30000000000000004 loses the last value */
   for (let v = from; v <= to + step * 1e-6; v += step) out.push(r3(v));
   return out;
 }
@@ -73,41 +73,41 @@ export function expandGrid(name: string, p: ProfileParams): Combo[] {
   const rs = gridValues(p.grid.search_range, p.search_range).map(v => Math.max(3, Math.round(v)));
 
   const total = as.length * bs.length * rs.length;
-  if (total > MAX_GRID_COMBOS) throw new Error(`сетка «${name}»: ${total} комбинаций при потолке ${MAX_GRID_COMBOS}`);
+  if (total > MAX_GRID_COMBOS) throw new Error(`grid "${name}": ${total} combinations exceed the cap of ${MAX_GRID_COMBOS}`);
 
   const out: Combo[] = [];
   for (const k1 of as) for (const k2 of bs) for (const search_range of rs) {
-    if (!validCoefs({ k1, k2, k3: p.k3 })) continue;   // невалидная для гипотезы комбинация пропускается
-    /* grid: null у комбинации — она уже развёрнута и повторно не разворачивается */
+    if (!validCoefs({ k1, k2, k3: p.k3 })) continue;   // a combination the hypothesis rejects is skipped
+    /* grid: null on a combination: it is already expanded and is not expanded again */
     out.push({ name: `${name}#k1=${k1},k2=${k2},r=${search_range}`, params: { ...p, k1, k2, search_range, grid: null } });
   }
-  if (!out.length) throw new Error(`сетка «${name}»: ни одной валидной комбинации`);
+  if (!out.length) throw new Error(`grid "${name}": no valid combinations`);
   return out;
 }
 
-/* имя базового профиля из имени комбинации (и из formation.id) */
+/* base profile name from a combination name (and from formation.id) */
 export const baseProfileName = (name: string): string => name.split('#')[0];
 
-/* комбинация сетки, а не обычный профиль: её сигналы идут строкой
-   в data/grid.db, без снапшота и без записи в журнал */
+/* a grid combination rather than a regular profile: its signals go as a row
+   into data/grid.db, with no snapshot and no journal entry */
 export const isCombo = (name: string): boolean => name.includes('#');
 
-/* ── Конфигурация снапшота ───────────────────────────────────── */
+/* ── Snapshot configuration ──────────────────────────────────── */
 export interface SnapshotTfCfg { tf: TF; bars: number }
 
 export const SNAPSHOT_DEFAULTS: SnapshotTfCfg[] = [
-  { tf: '5m', bars: 600 },   // ≈ 50 часов
-  { tf: '15m', bars: 400 },  // ≈ 4 дня
-  { tf: '1H', bars: 480 },   // = 20 дней
-  { tf: '4H', bars: 180 },   // = 30 дней
-  { tf: '1D', bars: 90 },    // = 3 месяца
+  { tf: '5m', bars: 600 },   // ≈ 50 hours
+  { tf: '15m', bars: 400 },  // ≈ 4 days
+  { tf: '1H', bars: 480 },   // = 20 days
+  { tf: '4H', bars: 180 },   // = 30 days
+  { tf: '1D', bars: 90 },    // = 3 months
 ];
 
-/* ── Интенсивность обновлений ────────────────────────────────── */
+/* ── Update intervals ────────────────────────────────────────── */
 export interface Intensity {
-  track_sec: number;       // контур сопровождения наблюдений
-  universe_min: number;    // контур тикеров/вселенной
-  scan_delay_sec: number;  // задержка после закрытия бара перед сканом
+  track_sec: number;       // tracking loop for observations
+  universe_min: number;    // tickers/universe loop
+  scan_delay_sec: number;  // delay after the bar close before the scan
 }
 
 export const INTENSITY_DEFAULTS: Intensity = {

@@ -1,8 +1,8 @@
-/* Подписанные запросы к Binance (HMAC-SHA256) — проверка приватного ключа.
-   Приложение по дизайну не торгует: используются только read-эндпоинты.
-   Проверка идёт через спотовый GET /sapi/v1/account/apiRestrictions — ему достаточно
-   разрешения «Enable Reading» (права Futures не требуются), а в ответе — полный
-   список разрешений ключа, который показываем пользователю. */
+/* Signed requests to Binance (HMAC-SHA256): private key verification.
+   By design the app doesn't trade: only read endpoints are used.
+   The check goes through the spot GET /sapi/v1/account/apiRestrictions: it only needs
+   the "Enable Reading" permission (no Futures rights required), and the response holds
+   the full list of the key's permissions, which is shown to the user. */
 import { createHmac } from 'node:crypto';
 import { getApiKey } from '../../keys/vault.js';
 
@@ -21,9 +21,9 @@ export interface KeyCheckResult {
 
 export async function verifyBinanceKey(): Promise<KeyCheckResult> {
   const k = getApiKey('binance');
-  if (!k) return { ok: false, error: 'ключ не сохранён' };
+  if (!k) return { ok: false, error: 'no key saved' };
   try {
-    /* серверное время — защита от рассинхрона локальных часов */
+    /* server time: protects against local clock drift */
     const tRes = await fetch(SPOT_BASE + '/api/v3/time');
     const { serverTime } = await tRes.json() as { serverTime: number };
     const qs = `timestamp=${serverTime}&recvWindow=10000`;

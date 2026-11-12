@@ -1,11 +1,11 @@
-/* Движок отрисовки свечных графиков:
-   свечи + объёмы (нижняя 1/4), горизонтальные уровни-отрезки, вертикальные маркеры,
-   зум колесом и панорамирование перетаскиванием. Отрисовка в физических пикселях. */
+/* Candlestick chart renderer:
+   candles + volumes (bottom 1/4), horizontal level segments, vertical markers,
+   wheel zoom and drag panning. Draws in physical pixels. */
 "use strict";
 const Chart = (() => {
   const UP = '#4E966F', DOWN = '#DD3742', BG = '#181818';
 
-  /* state: {bars, view:{start,count}, overlays} — хранится на самом canvas */
+  /* state: {bars, view:{start,count}, overlays}, stored on the canvas itself */
   function attach(canvas) {
     const st = { bars: [], overlays: null, view: null, drag: null };
     canvas.__chart = st;
@@ -16,7 +16,7 @@ const Chart = (() => {
       const v = st.view;
       const factor = ev.deltaY > 0 ? 1.2 : 1 / 1.2;
       const newCount = Math.max(20, Math.min(st.bars.length, Math.round(v.count * factor)));
-      /* якорим правый край */
+      /* anchor the right edge */
       const right = v.start + v.count;
       v.count = newCount;
       v.start = Math.max(0, right - newCount);
@@ -38,7 +38,7 @@ const Chart = (() => {
     return st;
   }
 
-  /* установить данные: bars — массив {t,o,h,l,c,v,q}, overlays — см. render */
+  /* set data: bars is an array of {t,o,h,l,c,v,q}, overlays: see render */
   function setData(canvas, bars, overlays, visibleCount) {
     const st = canvas.__chart || attach(canvas);
     st.bars = bars || [];
@@ -49,7 +49,7 @@ const Chart = (() => {
   }
 
   function barIndexByTs(bars, ts) {
-    /* бар, содержащий момент ts (bars по возрастанию времени) */
+    /* the bar containing moment ts (bars in ascending time order) */
     if (!bars.length || ts < bars[0].t) return -1;
     for (let i = bars.length - 1; i >= 0; i--) {
       if (bars[i].t <= ts) return i;
@@ -82,7 +82,7 @@ const Chart = (() => {
 
     let lo = Infinity, hi = -Infinity, vmax = 0;
     for (const k of slice) { if (k.l < lo) lo = k.l; if (k.h > hi) hi = k.h; if (k.q > vmax) vmax = k.q; }
-    /* уровни оверлеев учитываются в масштабе, чтобы не уезжали за край */
+    /* overlay levels are included in the scale so they don't go off the edge */
     if (st.overlays && st.overlays.levels) {
       for (const L of st.overlays.levels) {
         if (L.price > 0 && L.scale !== false) { if (L.price < lo) lo = L.price; if (L.price > hi) hi = L.price; }
@@ -91,13 +91,13 @@ const Chart = (() => {
     const pad = (hi - lo) * 0.08 || hi * 0.001 || 1;
     const top = hi + pad, bot = lo - pad, span = (top - bot) || 1;
     const yOf = p => ((top - p) / span) * priceH;
-    const xOf = i => (i - v.start) * slot + slot / 2;   // i — глобальный индекс бара
+    const xOf = i => (i - v.start) * slot + slot / 2;   // i is the global bar index
 
     const lineMode = slot < 4 * dpr;
     const bw = Math.max(Math.round(3 * dpr), Math.floor(slot * 0.72));
     const ww = Math.max(1, Math.round(dpr));
 
-    /* свечи + объёмы */
+    /* candles + volumes */
     for (let j = 0; j < n; j++) {
       const k = slice[j], cxF = j * slot + slot / 2, up = k.c >= k.o;
       ctx.fillStyle = up ? UP : DOWN;
@@ -127,7 +127,7 @@ const Chart = (() => {
     const dash = [Math.max(2, Math.round(2 * dpr)), Math.max(2, Math.round(3 * dpr))];
     ctx.font = `${Math.round(9 * dpr)}px ui-monospace,Consolas,monospace`;
 
-    /* вертикальные маркеры (вход и т.п.): {ts, color, label} */
+    /* vertical markers (signal etc.): {ts, color, label} */
     for (const m of (o.vlines || [])) {
       const gi = barIndexByTs(bars, m.ts);
       if (gi < 0) continue;
@@ -140,7 +140,7 @@ const Chart = (() => {
       ctx.restore();
     }
 
-    /* стрелки над баром: {ts, color} — вершина над high бара, остриём вниз */
+    /* arrows above a bar: {ts, color}, tip above the bar high, pointing down */
     for (const m of (o.marks || [])) {
       const gi = barIndexByTs(bars, m.ts);
       if (gi < v.start || gi >= v.start + n) continue;
@@ -153,8 +153,8 @@ const Chart = (() => {
       ctx.closePath(); ctx.fill();
     }
 
-    /* горизонтальные уровни-отрезки: {price, fromTs, color, dash, label}
-       отрезок от бара fromTs (или левого края) до правого края данных */
+    /* horizontal level segments: {price, fromTs, color, dash, label}
+       a segment from bar fromTs (or the left edge) to the right edge of the data */
     const labels = [];
     for (const L of (o.levels || [])) {
       if (!(L.price > 0)) continue;
@@ -171,11 +171,11 @@ const Chart = (() => {
       ctx.beginPath(); ctx.moveTo(Math.max(0, x1), y); ctx.lineTo(lastX, y); ctx.stroke();
       ctx.restore();
       if (L.label) labels.push({ name: L.label, price: String(L.price), color: L.color,
-        y: L.labelBelow ? y + 10 * dpr : y - 2 * dpr });   // labelBelow — подпись под линией
+        y: L.labelBelow ? y + 10 * dpr : y - 2 * dpr });   // labelBelow: label under the line
     }
 
-    /* подписи уровней без наложений: совпадающие линии сливаются в одну подпись
-       («k2·СИГ 0.068»), остальные расталкиваются по вертикали жадным проходом */
+    /* level labels without overlaps: coinciding lines merge into one label
+       ("k2·SIG"), the rest are pushed apart vertically in a greedy pass */
     if (labels.length) {
       const gap = Math.round(10 * dpr), mergeEps = 6 * dpr;
       const topY = Math.round(9 * dpr), botY = priceH - Math.round(2 * dpr);
@@ -191,8 +191,8 @@ const Chart = (() => {
       rows[rows.length - 1].y = Math.min(rows[rows.length - 1].y, botY);
       for (let i = rows.length - 2; i >= 0; i--) rows[i].y = Math.min(rows[i].y, rows[i + 1].y - gap);
       for (const r of rows) {
-        /* только имена уровней, без цен: уровни с одной ценой печатаются как «k2·СИГ»,
-           с разными — через « · » (группировка по цене оставлена ради этого слияния) */
+        /* level names only, no prices: levels with the same price print as "k2·SIG",
+           different ones are joined with " · " (price grouping is kept for this merge) */
         const groups = [];
         for (const it of r.items) {
           const g = groups[groups.length - 1];

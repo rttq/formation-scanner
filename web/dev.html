@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FORMATION SCANNER · статус</title>
+<title>FORMATION SCANNER · dev</title>
 <style>
   :root{
     --bg:#0c0d0f; --panel:#131418; --card:#181818; --line:#25262c;
@@ -41,68 +41,68 @@
 </head>
 <body>
 <h1>FORMATION SCANNER</h1>
-<div class="sub">страница разработчика</div>
+<div class="sub">developer page</div>
 
 <section>
-  <h2>ДВИЖОК</h2>
+  <h2>ENGINE</h2>
   <div class="row">
-    <button id="engStart">СТАРТ</button>
-    <button id="engStop">СТОП</button>
+    <button id="engStart">START</button>
+    <button id="engStop">STOP</button>
     <span id="engState" class="lbl"></span>
   </div>
   <div class="kv">
-    <span class="k">профили</span><span id="engProfiles">—</span>
-    <span class="k">паттернов под скорингом</span><span id="engArmed">—</span>
-    <span class="k">открытых наблюдений</span><span id="engOpen">—</span>
-    <span class="k">наблюдений в БД всего</span><span id="engTotal">—</span>
-    <span class="k">последняя ошибка</span><span id="engErr">—</span>
+    <span class="k">profiles</span><span id="engProfiles">—</span>
+    <span class="k">patterns being scored</span><span id="engArmed">—</span>
+    <span class="k">open observations</span><span id="engOpen">—</span>
+    <span class="k">observations in DB, total</span><span id="engTotal">—</span>
+    <span class="k">last error</span><span id="engErr">—</span>
   </div>
 </section>
 
 <section>
-  <h2>ПАТТЕРНЫ (последние)</h2>
-  <div class="row"><button id="fRefresh">ОБНОВИТЬ</button></div>
+  <h2>PATTERNS (latest)</h2>
+  <div class="row"><button id="fRefresh">REFRESH</button></div>
   <pre id="fList" style="max-height:200px">…</pre>
 </section>
 
 <section>
-  <h2>НАБЛЮДЕНИЯ (журнал, последние 30)</h2>
+  <h2>OBSERVATIONS (journal, latest 30)</h2>
   <div class="row">
-    <button id="eRefresh">ОБНОВИТЬ</button>
-    <span class="lbl">клик по номеру → снапшот в новой вкладке</span>
+    <button id="eRefresh">REFRESH</button>
+    <span class="lbl">click a number → snapshot in a new tab</span>
   </div>
   <pre id="eList" style="max-height:280px">…</pre>
 </section>
 
 <section>
-  <h2>СТАТУС СЕРВЕРА</h2>
+  <h2>SERVER STATUS</h2>
   <div class="kv" id="health">
-    <span class="k">состояние</span><span><span class="dot" id="dot"></span><span id="st">проверка…</span></span>
-    <span class="k">версия</span><span id="ver">—</span>
-    <span class="k">аптайм</span><span id="up">—</span>
-    <span class="k">база данных</span><span id="dbinfo">—</span>
-    <span class="k">очередь запросов</span><span id="qinfo">—</span>
-    <span class="k">ping биржи</span><span id="ping">—</span>
+    <span class="k">state</span><span><span class="dot" id="dot"></span><span id="st">checking…</span></span>
+    <span class="k">version</span><span id="ver">—</span>
+    <span class="k">uptime</span><span id="up">—</span>
+    <span class="k">database</span><span id="dbinfo">—</span>
+    <span class="k">request queue</span><span id="qinfo">—</span>
+    <span class="k">exchange ping</span><span id="ping">—</span>
   </div>
 </section>
 
 <section>
-  <h2>ТЕСТ: СВЕЧИ И ДЕТЕКТОР ГИПОТЕЗЫ (Binance Futures)</h2>
+  <h2>TEST: CANDLES AND HYPOTHESIS DETECTOR (Binance Futures)</h2>
   <div class="row">
-    <span class="lbl">ТИКЕР</span><input id="symbol" value="BTCUSDT" style="width:120px">
-    <span class="lbl">ТФ</span>
+    <span class="lbl">SYMBOL</span><input id="symbol" value="BTCUSDT" style="width:120px">
+    <span class="lbl">TF</span>
     <select id="tf">
       <option>1m</option><option>5m</option><option selected>15m</option>
       <option>30m</option><option>1H</option><option>4H</option><option>1D</option>
     </select>
-    <span class="lbl">ДИАПАЗОН</span><input class="num" id="range" type="number" value="60">
+    <span class="lbl">WINDOW</span><input class="num" id="range" type="number" value="60">
     <span class="lbl">k1</span><input class="num" id="k1" type="number" step="0.01" value="0.6">
     <span class="lbl">k2</span><input class="num" id="k2" type="number" step="0.01" value="0.3">
     <span class="lbl">k3</span><input class="num" id="k3" type="number" step="0.01" value="0.1">
   </div>
   <div class="row">
-    <button id="btnKlines">СВЕЧИ (последние 5)</button>
-    <button id="btnScan">ПРОВЕРИТЬ ПАТТЕРН</button>
+    <button id="btnKlines">CANDLES (latest 5)</button>
+    <button id="btnScan">CHECK PATTERN</button>
     <span id="verdict"></span>
   </div>
   <pre id="out">…</pre>
@@ -118,17 +118,17 @@ async function health(){
     const h = await (await fetch('/api/health')).json();
     $('dot').className = 'dot ok'; $('st').textContent = 'OK';
     $('ver').textContent = h.version;
-    $('up').textContent = h.uptimeSec + ' с';
-    $('dbinfo').textContent = h.db.tables + ' таблиц · ' + h.db.file;
-    $('qinfo').textContent = 'всего ' + h.queue.total + ' · активно ' + h.queue.active +
-      ' · параллелизм ' + h.queue.maxConcurrency;
+    $('up').textContent = h.uptimeSec + ' s';
+    $('dbinfo').textContent = h.db.tables + ' tables · ' + h.db.file;
+    $('qinfo').textContent = 'total ' + h.queue.total + ' · active ' + h.queue.active +
+      ' · concurrency ' + h.queue.maxConcurrency;
   }catch(e){
-    $('dot').className = 'dot err'; $('st').textContent = 'сервер недоступен';
+    $('dot').className = 'dot err'; $('st').textContent = 'server unavailable';
   }
 }
 async function ping(){
-  try{ const p = await (await fetch('/api/market/ping')).json(); $('ping').textContent = p.ms + ' мс'; }
-  catch(e){ $('ping').textContent = 'ошибка: ' + e.message; }
+  try{ const p = await (await fetch('/api/market/ping')).json(); $('ping').textContent = p.ms + ' ms'; }
+  catch(e){ $('ping').textContent = 'error: ' + e.message; }
 }
 
 function params(){
@@ -138,80 +138,80 @@ function params(){
 }
 
 $('btnKlines').onclick = async () => {
-  $('out').textContent = 'загрузка…'; $('verdict').textContent = '';
+  $('out').textContent = 'loading…'; $('verdict').textContent = '';
   try{
     const r = await (await fetch('/api/market/klines?symbol=' +
       encodeURIComponent($('symbol').value.trim()) + '&tf=' + $('tf').value + '&limit=120')).json();
-    if(r.error){ $('out').textContent = 'Ошибка: ' + r.error; return; }
-    $('out').textContent = 'получено баров: ' + r.count + '\n\nпоследние 5:\n' + fmt(r.klines.slice(-5));
-  }catch(e){ $('out').textContent = 'Ошибка: ' + e.message; }
+    if(r.error){ $('out').textContent = 'Error: ' + r.error; return; }
+    $('out').textContent = 'bars received: ' + r.count + '\n\nlatest 5:\n' + fmt(r.klines.slice(-5));
+  }catch(e){ $('out').textContent = 'Error: ' + e.message; }
 };
 
 $('btnScan').onclick = async () => {
-  $('out').textContent = 'сканирование…'; $('verdict').textContent = '';
+  $('out').textContent = 'scanning…'; $('verdict').textContent = '';
   try{
     const r = await (await fetch('/api/scan/symbol?' + params())).json();
-    if(r.error){ $('out').textContent = 'Ошибка: ' + r.error; return; }
+    if(r.error){ $('out').textContent = 'Error: ' + r.error; return; }
     if(r.pattern){
       const d = r.pattern.dir.toUpperCase();
       $('verdict').innerHTML = '→ <b class="' + r.pattern.dir + '">' + d + '</b>';
     } else {
-      $('verdict').textContent = '→ паттерна нет';
+      $('verdict').textContent = '→ no pattern';
     }
     $('out').textContent = fmt(r);
-  }catch(e){ $('out').textContent = 'Ошибка: ' + e.message; }
+  }catch(e){ $('out').textContent = 'Error: ' + e.message; }
 };
 
-/* ── движок ── */
+/* ── engine ── */
 async function engineStatus(){
   try{
     const s = await (await fetch('/api/engine/status')).json();
-    $('engState').textContent = s.running ? '● работает' : '○ остановлен';
+    $('engState').textContent = s.running ? '● running' : '○ stopped';
     $('engState').style.color = s.running ? 'var(--up)' : 'var(--muted)';
     $('engProfiles').textContent = s.profiles.map(p =>
-      p.name + ' (' + p.tf + ', ' + (p.enabled ? 'ON' : 'off') + ', монет: ' + p.universe +
-      (p.lastScanAt ? ', скан ' + new Date(p.lastScanAt).toLocaleTimeString('ru-RU') : '') + ')'
+      p.name + ' (' + p.tf + ', ' + (p.enabled ? 'ON' : 'off') + ', coins: ' + p.universe +
+      (p.lastScanAt ? ', scan ' + new Date(p.lastScanAt).toLocaleTimeString() : '') + ')'
     ).join(' · ') || '—';
     $('engArmed').textContent = s.scoringCount;
     $('engOpen').textContent = s.openCount;
-    $('engTotal').textContent = s.entries.total + ' (открыто ' + s.entries.open + ')';
+    $('engTotal').textContent = s.entries.total + ' (open ' + s.entries.open + ')';
     $('engErr').textContent = s.lastError || '—';
   }catch(e){ $('engState').textContent = '?'; }
 }
 $('engStart').onclick = async () => { await fetch('/api/engine/start',{method:'POST'}); engineStatus(); };
 $('engStop').onclick = async () => { await fetch('/api/engine/stop',{method:'POST'}); engineStatus(); };
 
-const ft = t => new Date(t).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+const ft = t => new Date(t).toLocaleString(undefined,{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 
 async function formations(){
   try{
     const list = await (await fetch('/api/formations?limit=25')).json();
-    if(!list.length){ $('fList').textContent = 'пока нет паттернов'; return; }
+    if(!list.length){ $('fList').textContent = 'no patterns yet'; return; }
     $('fList').textContent = list.map(f =>
       ft(f.detected_at) + '  ' + f.symbol.padEnd(14) + f.dir.toUpperCase().padEnd(6) +
       f.status.padEnd(10) + ' A=' + f.price_A + ' B=' + f.price_B + ' C=' + f.price_C +
       (f.cancel_reason ? '  (' + f.cancel_reason + ')' : '') +
       '  [' + f.id.split('|')[0] + ']'
     ).join('\n');
-  }catch(e){ $('fList').textContent = 'ошибка: ' + e.message; }
+  }catch(e){ $('fList').textContent = 'error: ' + e.message; }
 }
 $('fRefresh').onclick = formations;
 
 async function entries(){
   try{
     const list = await (await fetch('/api/entries?limit=30')).json();
-    if(!list.length){ $('eList').textContent = 'пока нет записей — движок ждёт сигналов'; return; }
+    if(!list.length){ $('eList').textContent = 'no records yet: the engine is waiting for signals'; return; }
     $('eList').innerHTML = list.map(e => {
-      const stars = e.score_stage === 'final' ? 'оценка ' + (e.score ?? 0) : (e.score_stage ? 'скоринг…' : '');
+      const stars = e.score_stage === 'final' ? 'score ' + (e.score ?? 0) : (e.score_stage ? 'scoring…' : '');
       return '<a href="/api/entries/' + e.id + '/snapshot" target="_blank" style="color:var(--accent)">#' + String(e.id).padStart(4) + '</a> ' +
         ft(e.entered_at) + '  ' + e.symbol.padEnd(14) +
         '<span class="' + (e.dir === 'long' ? 'long' : 'short') + '">' + e.dir.toUpperCase().padEnd(6) + '</span>' +
         stars.padEnd(12) +
-        'сиг=' + e.entry_price + '  ' +
+        'sig=' + e.entry_price + '  ' +
         e.status.padEnd(7) + (e.exit_reason || '').padEnd(8) +
         (e.mfe_pct != null ? '  MFE ' + e.mfe_pct.toFixed(2) + '% / MAE ' + e.mae_pct.toFixed(2) + '%' : '');
     }).join('\n');
-  }catch(e){ $('eList').textContent = 'ошибка: ' + e.message; }
+  }catch(e){ $('eList').textContent = 'error: ' + e.message; }
 }
 $('eRefresh').onclick = entries;
 

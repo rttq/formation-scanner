@@ -1,13 +1,13 @@
-/* Очередь HTTP-запросов с адаптивным параллелизмом.
-   При 429/418 потолок параллелизма уполовинивается и включается пауза;
-   при череде успешных ответов потолок плавно растёт обратно. */
+/* HTTP request queue with adaptive concurrency.
+   On 429/418 the concurrency cap is halved and a cooldown starts;
+   after a streak of successful responses the cap slowly grows back. */
 
 export interface QueueStats {
-  total: number;        // всего запросов за время работы
-  active: number;       // выполняется сейчас
-  pending: number;      // ждут в очереди
+  total: number;        // total requests since start
+  active: number;       // running now
+  pending: number;      // waiting in the queue
   maxConcurrency: number;
-  cooldownUntil: number; // unix ms; 0 = нет паузы
+  cooldownUntil: number; // unix ms; 0 = no cooldown
 }
 
 const MAXC_FLOOR = 4;
@@ -41,14 +41,14 @@ function pump(): void {
     active++; total++;
     fetch(job.url)
       .then(res => {
-        if (res.status === 429 || res.status === 418) {   // биржа просит сбавить
+        if (res.status === 429 || res.status === 418) {   // the exchange asks to slow down
           maxc = Math.max(MAXC_FLOOR, (maxc / 2) | 0);
           okStreak = 0;
           cooldownUntil = Date.now() + COOLDOWN_MS;
-          throw new Error(`HTTP ${res.status} (${res.status === 429 ? 'rate limit' : 'бан'} биржи)`);
+          throw new Error(`HTTP ${res.status} (exchange ${res.status === 429 ? 'rate limit' : 'ban'})`);
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        if (++okStreak >= 40 && maxc < MAXC_CEIL) { maxc++; okStreak = 0; }  // плавное восстановление
+        if (++okStreak >= 40 && maxc < MAXC_CEIL) { maxc++; okStreak = 0; }  // gradual recovery
         return res.json();
       })
       .then(

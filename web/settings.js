@@ -1,4 +1,4 @@
-/* Настройки: движок, снапшот, API-ключи, интенсивность, обслуживание БД */
+/* Settings: engine, snapshot, API keys, update intervals, DB maintenance */
 "use strict";
 const $ = id => document.getElementById(id);
 const TFS = ['1m', '5m', '15m', '30m', '1H', '4H', '1D'];
@@ -20,28 +20,28 @@ function toast(msg, err) {
 }
 const sel = (opts, val, extra) => `<select ${extra || ''}>` + opts.map(o => `<option${o === val ? ' selected' : ''}>${o}</option>`).join('') + '</select>';
 
-/* ── движок ── */
+/* ── engine ── */
 async function engineStatus() {
   try {
     const s = await api.get('/api/engine/status');
-    $('engState').innerHTML = s.running ? '<span class="ok">● работает</span>' : '<span class="err">○ остановлен</span>';
-  } catch { $('engState').innerHTML = '<span class="err">нет связи</span>'; }
+    $('engState').innerHTML = s.running ? '<span class="ok">● running</span>' : '<span class="err">○ stopped</span>';
+  } catch { $('engState').innerHTML = '<span class="err">no connection</span>'; }
 }
 async function engineRestart() { await api.post('/api/engine/restart'); engineStatus(); }
-$('btnStart').onclick = async () => { await api.post('/api/engine/start'); engineStatus(); toast('движок запущен'); };
-$('btnStop').onclick = async () => { await api.post('/api/engine/stop'); engineStatus(); toast('движок остановлен'); };
-$('btnRestart').onclick = async () => { await engineRestart(); toast('движок перезапущен'); };
-$('autostart').onchange = async () => { await api.put('/api/settings/engine_autostart', $('autostart').checked); toast('автостарт: ' + ($('autostart').checked ? 'вкл' : 'выкл')); };
+$('btnStart').onclick = async () => { await api.post('/api/engine/start'); engineStatus(); toast('engine started'); };
+$('btnStop').onclick = async () => { await api.post('/api/engine/stop'); engineStatus(); toast('engine stopped'); };
+$('btnRestart').onclick = async () => { await engineRestart(); toast('engine restarted'); };
+$('autostart').onchange = async () => { await api.put('/api/settings/engine_autostart', $('autostart').checked); toast('autostart: ' + ($('autostart').checked ? 'on' : 'off')); };
 
-/* профили переехали на страницу СКАНЕР (scanner.js) */
+/* scan profiles moved to the LIVE page (cards.js) */
 
-/* ── снапшот ── */
+/* ── snapshot ── */
 function snapRow(tf, bars) {
   const div = document.createElement('div');
   div.className = 'row';
   div.innerHTML = sel(TFS, tf, 'class="sTf"') +
     `<input class="num sBars" type="number" min="10" max="1000" value="${bars}">` +
-    '<span class="lbl">баров</span><button class="sDel danger">✕</button>';
+    '<span class="lbl">bars</span><button class="sDel danger">✕</button>';
   div.querySelector('.sDel').onclick = () => div.remove();
   return div;
 }
@@ -57,16 +57,16 @@ $('btnSnapSave').onclick = async () => {
   const seen = new Set(); const cfg = [];
   for (const r of rows) {
     const tf = r.querySelector('.sTf').value;
-    if (seen.has(tf)) return toast('таймфрейм ' + tf + ' указан дважды', true);
+    if (seen.has(tf)) return toast('timeframe ' + tf + ' is listed twice', true);
     seen.add(tf);
     cfg.push({ tf, bars: Math.min(1000, Math.max(10, parseInt(r.querySelector('.sBars').value, 10) || 100)) });
   }
-  if (!cfg.length) return toast('нужен хотя бы один таймфрейм', true);
+  if (!cfg.length) return toast('at least one timeframe is needed', true);
   await api.put('/api/settings/snapshot_config', cfg);
-  toast('глубина снапшота сохранена');
+  toast('snapshot depth saved');
 };
 
-/* ── интенсивность ── */
+/* ── update intervals ── */
 async function loadIntensity() {
   const r = await api.get('/api/settings/intensity');
   const v = r.value || {};
@@ -81,99 +81,99 @@ $('btnItSave').onclick = async () => {
     scan_delay_sec: Math.max(0, parseInt($('itDelay').value, 10) || 5),
   });
   await engineRestart();
-  toast('интенсивность сохранена, движок перезапущен');
+  toast('update intervals saved, engine restarted');
 };
 
-/* ── обслуживание БД ── */
-const fmtBytes = b => b >= 1e9 ? (b / 1e9).toFixed(2) + ' ГБ' : b >= 1e6 ? (b / 1e6).toFixed(1) + ' МБ' : (b / 1e3).toFixed(0) + ' КБ';
+/* ── DB maintenance ── */
+const fmtBytes = b => b >= 1e9 ? (b / 1e9).toFixed(2) + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : (b / 1e3).toFixed(0) + ' KB';
 async function loadDbStats() {
   try {
     const s = await api.get('/api/db/stats');
     const f = (label, val) => `<div class="fld"><label>${label}</label><span>${val}</span></div>`;
     $('dbStats').innerHTML =
-      f('файл базы', fmtBytes(s.db_bytes)) +
-      f('WAL (журнал записи)', fmtBytes(s.wal_bytes)) +
-      f('объём снапшотов', fmtBytes(s.snapshot_bytes)) +
-      f('формаций', s.formations) +
-      f('наблюдений', s.entries) +
-      f('снапшотов', s.snapshots) +
-      f('старейшее наблюдение', s.oldest_entry_at ? new Date(s.oldest_entry_at).toLocaleDateString('ru-RU') : '—');
-  } catch { $('dbStats').innerHTML = '<span class="err">нет связи</span>'; }
+      f('database file', fmtBytes(s.db_bytes)) +
+      f('WAL (write-ahead log)', fmtBytes(s.wal_bytes)) +
+      f('snapshot size', fmtBytes(s.snapshot_bytes)) +
+      f('patterns', s.formations) +
+      f('observations', s.entries) +
+      f('snapshots', s.snapshots) +
+      f('oldest observation', s.oldest_entry_at ? new Date(s.oldest_entry_at).toLocaleDateString() : '—');
+  } catch { $('dbStats').innerHTML = '<span class="err">no connection</span>'; }
 }
 $('btnDbRefresh').onclick = loadDbStats;
 $('btnVacuum').onclick = async () => {
   $('btnVacuum').disabled = true;
   try {
     const r = await api.post('/api/db/vacuum');
-    toast(r.ok ? 'VACUUM за ' + r.ms + ' мс, освобождено ' + fmtBytes(Math.max(0, r.freed_bytes)) : (r.error || 'ошибка'), !r.ok);
-  } catch { toast('нет связи', true); }
+    toast(r.ok ? 'VACUUM took ' + r.ms + ' ms, freed ' + fmtBytes(Math.max(0, r.freed_bytes)) : (r.error || 'error'), !r.ok);
+  } catch { toast('no connection', true); }
   $('btnVacuum').disabled = false;
   loadDbStats(); engineStatus();
 };
 $('btnCleanup').onclick = async () => {
   const days = Math.max(1, parseInt($('dbDays').value, 10) || 30);
   $('dbDays').value = days;
-  if (!confirm('Удалить закрытые наблюдения со снапшотами и отработавшие формации старше ' + days + ' дн.? Это необратимо.')) return;
+  if (!confirm('Delete closed observations with their snapshots and resolved patterns older than ' + days + ' days? This cannot be undone.')) return;
   const r = await api.post('/api/db/cleanup', { days });
   if (r.error) return toast(r.error, true);
-  toast('удалено: наблюдений ' + r.entries + ', снапшотов ' + r.snapshots + ', формаций ' + r.formations + ' — нажмите VACUUM для сжатия');
+  toast('deleted: observations ' + r.entries + ', snapshots ' + r.snapshots + ', patterns ' + r.formations + '. Press VACUUM to compact');
   loadDbStats();
 };
 
-/* ── приватные API-ключи ── */
+/* ── private API keys ── */
 async function loadKeys() {
   const keys = await api.get('/api/keys');
   const tb = $('keysTable').querySelector('tbody');
   if (!keys.length) {
-    tb.innerHTML = '<tr><td colspan="6" style="color:var(--dim)">ключей нет — приложение работает по публичным эндпоинтам</td></tr>';
+    tb.innerHTML = '<tr><td colspan="6" style="color:var(--dim)">no keys: the app works with public endpoints</td></tr>';
     return;
   }
   tb.innerHTML = keys.map(k => `<tr data-ex="${k.exchange}">
     <td style="color:#fff">${k.exchange}</td>
     <td>${k.masked}</td>
-    <td class="hint">${new Date(k.saved_at).toLocaleString('ru-RU')}</td>
+    <td class="hint">${new Date(k.saved_at).toLocaleString()}</td>
     <td class="kResult hint">—</td>
-    <td><button class="kVerify">ПРОВЕРИТЬ</button></td>
+    <td><button class="kVerify">VERIFY</button></td>
     <td><button class="kDel danger">✕</button></td>
   </tr>`).join('');
   tb.querySelectorAll('tr').forEach(tr => {
     const ex = tr.dataset.ex;
     const out = tr.querySelector('.kResult');
     tr.querySelector('.kVerify').onclick = async () => {
-      out.textContent = 'проверка…'; out.className = 'kResult hint';
+      out.textContent = 'checking…'; out.className = 'kResult hint';
       const r = await api.post('/api/keys/' + ex + '/verify');
       if (r.ok) {
         const perms = [];
-        perms.push(r.enableReading ? 'чтение ✓' : '<span class="err">чтения нет!</span>');
-        perms.push('IP: ' + (r.ipRestrict ? 'ограничен' : 'без ограничений'));
-        if (r.enableSpotTrading) perms.push('<span class="err">торговля спот включена</span>');
-        if (r.enableFutures) perms.push('<span class="err">торговля фьючерсы включена</span>');
-        if (r.enableWithdrawals) perms.push('<span class="err">ВЫВОД СРЕДСТВ ВКЛЮЧЁН — отключите!</span>');
+        perms.push(r.enableReading ? 'read ✓' : '<span class="err">no read permission!</span>');
+        perms.push('IP: ' + (r.ipRestrict ? 'restricted' : 'unrestricted'));
+        if (r.enableSpotTrading) perms.push('<span class="err">spot trading enabled</span>');
+        if (r.enableFutures) perms.push('<span class="err">futures trading enabled</span>');
+        if (r.enableWithdrawals) perms.push('<span class="err">WITHDRAWALS ENABLED: turn them off!</span>');
         if (!r.enableSpotTrading && !r.enableFutures && !r.enableWithdrawals) perms.push('read-only ✓');
-        out.innerHTML = `<span class="ok">✓ ключ действителен</span> · ` + perms.join(' · ');
+        out.innerHTML = `<span class="ok">✓ key is valid</span> · ` + perms.join(' · ');
       } else {
         out.innerHTML = `<span class="err">✗ ${r.error}</span>`;
       }
     };
     tr.querySelector('.kDel').onclick = async () => {
-      if (!confirm('Удалить ключ ' + ex + '?')) return;
+      if (!confirm('Delete the ' + ex + ' key?')) return;
       await api.del('/api/keys/' + ex);
       loadKeys();
-      toast('ключ удалён');
+      toast('key deleted');
     };
   });
 }
 $('btnKeySave').onclick = async () => {
   const key = $('keyApi').value.trim(), secret = $('keySecret').value.trim();
-  if (key.length < 10 || secret.length < 10) return toast('введите API Key и API Secret', true);
+  if (key.length < 10 || secret.length < 10) return toast('enter the API Key and API Secret', true);
   const r = await api.put('/api/keys/' + $('keyExchange').value, { key, secret });
   if (r.error) return toast(r.error, true);
   $('keyApi').value = ''; $('keySecret').value = '';
   loadKeys();
-  toast('ключ сохранён (зашифрован) — нажмите «ПРОВЕРИТЬ»');
+  toast('key saved (encrypted): press VERIFY');
 };
 
-/* ── старт ── */
+/* ── start ── */
 (async () => {
   const auto = await api.get('/api/settings/engine_autostart');
   $('autostart').checked = auto.value !== false;

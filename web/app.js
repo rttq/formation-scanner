@@ -1,5 +1,5 @@
-/* Журнал сигналов + просмотрщик снапшотов: оценка скоринга 0–4 в таблице,
-   снапшоты «на сигнале» и «на оценке» */
+/* Signal journal + snapshot viewer: the 0–4 scoring score in the table,
+   snapshots "at the signal" and "at the final score" */
 "use strict";
 const $ = id => document.getElementById(id);
 const TF_ORDER = { '1m': 1, '5m': 2, '15m': 3, '30m': 4, '1H': 5, '4H': 6, '1D': 7 };
@@ -8,52 +8,51 @@ let entries = [];
 let sortKey = 'entered_at', sortAsc = false;
 const viewer = {
   open: false, ids: [], idx: -1, entry: null,
-  snap: null, snapScored: null, which: 'signal',   // какой контейнер показан
+  snap: null, snapScored: null, which: 'signal',   // which container is shown
   tf: null, after: null, showAfter: true,
 };
 
-/* ── формат ── */
-const fmtDT = t => t == null ? '—' : new Date(t).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+/* ── formatting (browser locale) ── */
+const fmtDT = t => t == null ? '—' : new Date(t).toLocaleString(undefined, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 function fmtPrice(p, tick) {
   if (p == null || !isFinite(p)) return '—';
   let d;
   if (tick && tick > 0) d = Math.max(0, Math.round(-Math.log10(tick)));
   else d = p >= 1000 ? 2 : p >= 1 ? 4 : 8;
-  return p.toLocaleString('ru-RU', { minimumFractionDigits: Math.min(d, 10), maximumFractionDigits: Math.min(d, 10) });
+  return p.toLocaleString(undefined, { minimumFractionDigits: Math.min(d, 10), maximumFractionDigits: Math.min(d, 10) });
 }
 const fmtPct = x => x == null ? '—' : (x > 0 ? '+' : '') + x.toFixed(2) + '%';
 const fmtVol = v => !isFinite(v) ? '—' : v >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v);
 
-/* оценка скоринга: звёзды или текущая стадия (промежуточные стадии задаёт гипотеза) */
-const STAGE_RU = { watch: 'ожидание', final: 'финал' };
-const stageName = st => STAGE_RU[st] ?? st;
+/* scoring score: stars, or "pending" while the score isn't final
+   (stage names come from the hypothesis and are shown as is) */
 const starsOf = n => '<span class="star">' + '★'.repeat(n) + '</span><span class="dimstar">' + '☆'.repeat(4 - n) + '</span>';
 function starsHtml(e) {
   if (e.score_stage == null) return '<span class="muted">—</span>';
   if (e.score_stage !== 'final') {
-    return (e.score != null ? starsOf(e.score) + ' ' : '') + '<span class="muted">в процессе</span>';
+    return (e.score != null ? starsOf(e.score) + ' ' : '') + '<span class="muted">pending</span>';
   }
   return starsOf(e.score ?? 0);
 }
 
-/* ── статус движка (мини) ── */
+/* ── engine status (mini) ── */
 async function engineStatus() {
   try {
     const s = await (await fetch('/api/engine/status')).json();
     $('engDot').className = 'dot ' + (s.running ? 'ok' : 'err');
-    $('engTxt').textContent = s.running ? 'движок работает' : 'движок остановлен';
+    $('engTxt').textContent = s.running ? 'engine running' : 'engine stopped';
     $('stScoring').textContent = s.scoringCount;
     $('stOpen').textContent = s.entries.open;
     $('stTotal').textContent = s.entries.total;
-  } catch { $('engDot').className = 'dot err'; $('engTxt').textContent = 'нет связи'; }
+  } catch { $('engDot').className = 'dot err'; $('engTxt').textContent = 'no connection'; }
 }
 
-/* ── журнал ── */
+/* ── journal ── */
 const COLS = [
-  ['id', '#'], ['entered_at', 'ВРЕМЯ СИГНАЛА'], ['symbol', 'ТИКЕР'], ['tf', 'ТФ'], ['dir', 'НАПР'],
-  ['entry_price', 'ЦЕНА СИГНАЛА'], ['score', 'ОЦЕНКА'],
-  ['status', 'СТАТУС'], ['scored_at', 'ФИКСАЦИЯ'],
-  ['mfe_pct', 'MFE %'], ['mae_pct', 'MAE %'], ['bars_held', 'БАРОВ'],
+  ['id', '#'], ['entered_at', 'SIGNAL TIME'], ['symbol', 'SYMBOL'], ['tf', 'TF'], ['dir', 'DIR'],
+  ['entry_price', 'SIGNAL PRICE'], ['score', 'SCORE'],
+  ['status', 'STATUS'], ['scored_at', 'SCORED AT'],
+  ['mfe_pct', 'MFE %'], ['mae_pct', 'MAE %'], ['bars_held', 'BARS'],
 ];
 
 function renderHead() {
@@ -77,7 +76,7 @@ function renderTable() {
     return sortAsc ? c : -c;
   });
   if (!list.length) {
-    $('tbody').innerHTML = '<tr><td class="empty" colspan="12">сигналов нет — движок копит статистику</td></tr>';
+    $('tbody').innerHTML = '<tr><td class="empty" colspan="12">no signals yet: the engine is collecting statistics</td></tr>';
     return;
   }
   $('tbody').innerHTML = list.map(e => `<tr data-id="${e.id}">
@@ -98,8 +97,8 @@ function renderStats() {
   const n = k => fin.filter(e => e.score === k).length;
   const openN = entries.filter(e => e.status === 'open').length;
   const longN = entries.filter(e => e.dir === 'long').length;
-  let html = `<span class="s">выборка<b>${entries.length}</b></span>` +
-    `<span class="s">наблюдается<b>${openN}</b></span>` +
+  let html = `<span class="s">shown<b>${entries.length}</b></span>` +
+    `<span class="s">open<b>${openN}</b></span>` +
     `<span class="s">long / short<b><span class="up">${longN}</span> / <span class="down">${entries.length - longN}</span></b></span>` +
     `<span class="s"><span class="star">★★★★</span><b>${n(4)}</b></span>` +
     `<span class="s"><span class="star">★★★</span><b>${n(3)}</b></span>` +
@@ -110,7 +109,7 @@ function renderStats() {
     const sum = a => a.reduce((s, x) => s + x, 0);
     const avgMfe = sum(fin.map(e => e.mfe_pct ?? 0)) / fin.length;
     const avgMae = sum(fin.map(e => e.mae_pct ?? 0)) / fin.length;
-    html += `<span class="s">средн. MFE/MAE<b><span class="up">${avgMfe.toFixed(2)}%</span> / <span class="down">${avgMae.toFixed(2)}%</span></b></span>`;
+    html += `<span class="s">avg MFE/MAE<b><span class="up">${avgMfe.toFixed(2)}%</span> / <span class="down">${avgMae.toFixed(2)}%</span></b></span>`;
   }
   $('stats').innerHTML = html;
 }
@@ -129,7 +128,7 @@ async function loadEntries() {
 $('fApply').onclick = loadEntries;
 $('fSymbol').onkeydown = e => { if (e.key === 'Enter') loadEntries(); };
 
-/* ── просмотрщик ── */
+/* ── viewer ── */
 function openViewer(id) {
   viewer.ids = entries.map(e => e.id);
   viewer.idx = viewer.ids.indexOf(id);
@@ -162,7 +161,7 @@ async function loadViewer(id) {
     fetch('/api/entries/' + id + '/snapshot-scored'),
     fetch('/api/entries/' + id + '/after'),
   ]);
-  if (snap.error) { $('vSide').innerHTML = '<span class="down">снапшот не найден</span>'; return; }
+  if (snap.error) { $('vSide').innerHTML = '<span class="down">snapshot not found</span>'; return; }
   viewer.entry = entry; viewer.snap = snap;
   viewer.snapScored = scoredRes.ok ? await scoredRes.json() : null;
   viewer.which = 'signal';
@@ -173,9 +172,9 @@ async function loadViewer(id) {
   $('vDir').innerHTML = `<span class="${entry.dir === 'long' ? 'up' : 'down'}">${entry.dir.toUpperCase()}</span>`;
   $('vPnl').innerHTML = entry.score_stage === 'final'
     ? `<span>${starsHtml(entry)}</span><span class="muted"> · MFE ${(entry.mfe_pct ?? 0).toFixed(2)}% / MAE ${(entry.mae_pct ?? 0).toFixed(2)}%</span>`
-    : `<span class="muted">${entry.score_stage ? stageName(entry.score_stage) : 'наблюдение идёт'}</span>`;
+    : `<span class="muted">${entry.score_stage ?? 'observing'}</span>`;
 
-  /* переключатель контейнеров показываем, когда есть снапшот на оценке */
+  /* the container switcher is shown once there is a scored snapshot */
   $('vSnaps').style.display = viewer.snapScored ? '' : 'none';
   setSnapButtons();
 
@@ -201,7 +200,7 @@ $('vSnapScored').onclick = () => { if (viewer.snapScored) { viewer.which = 'scor
 
 function activeSnap() { return viewer.which === 'scored' && viewer.snapScored ? viewer.snapScored : viewer.snap; }
 
-/* склейка баров снапшота сигнала с дозаписью развития (от сигнала до фиксации) */
+/* merge the signal snapshot's bars with the after-signal bars (from the signal to the final score) */
 function viewerBars() {
   const snapBars = activeSnap().klines[viewer.tf] || [];
   const a = viewer.after;
@@ -217,7 +216,7 @@ function drawViewer() {
   if (!snap) return;
   const pat = snap.pattern, isPatTf = viewer.tf === pat.tf;
 
-  /* «РАЗВИТИЕ» — только на контейнере сигнала и рабочем ТФ (у контейнера оценки бары уже финальные) */
+  /* "AFTER SIGNAL" only on the signal container and the pattern TF (the scored container's bars are already final) */
   const canAfter = viewer.which === 'signal' && !!(viewer.after && viewer.tf === viewer.after.tf);
   $('vAfter').style.display = canAfter ? '' : 'none';
   $('vAfter').classList.toggle('on', canAfter && viewer.showAfter);
@@ -225,21 +224,21 @@ function drawViewer() {
   const { bars, merged } = viewerBars();
   const overlays = {
     levels: [
-      /* точки паттерна: отрезки от своего бара; на чужих ТФ — те же цены от ts */
+      /* pattern points: segments from their own bar; on other TFs, the same prices from ts */
       { price: pat.A.price, fromTs: pat.A.ts, color: '#6b6d75', label: 'A' },
       { price: pat.B.price, fromTs: pat.B.ts, color: '#6b6d75', label: 'B' },
       { price: pat.levels.k1, fromTs: pat.A.ts, color: '#BA270D', label: 'k1' },
       { price: pat.levels.k2, fromTs: pat.A.ts, color: '#DD3742', label: 'k2' },
       { price: pat.levels.k3, fromTs: pat.A.ts, color: '#DD8836', label: 'k3', labelBelow: true },
-      { price: snap.entry.price, fromTs: snap.entry.ts, color: '#56b6c2', dash: false, label: 'СИГНАЛ' },
+      { price: snap.entry.price, fromTs: snap.entry.ts, color: '#56b6c2', dash: false, label: 'SIGNAL' },
     ],
-    marks: [{ ts: snap.entry.ts }],   // белая стрелка над баром сигнала
+    marks: [{ ts: snap.entry.ts }],   // white arrow above the signal bar
   };
-  /* линия цены фиксации оценки: на развитии и на контейнере оценки */
+  /* price line at the final score: on the after-signal view and on the scored container */
   if ((merged || viewer.which === 'scored') && entry.status === 'closed' && entry.exit_price != null) {
-    overlays.levels.push({ price: entry.exit_price, fromTs: snap.entry.ts, color: '#c9a23a', label: 'ФИКСАЦИЯ', labelBelow: true });
+    overlays.levels.push({ price: entry.exit_price, fromTs: snap.entry.ts, color: '#c9a23a', label: 'SCORED', labelBelow: true });
   }
-  /* стартовое окно: на ТФ паттерна — диапазон поиска + бары развития + запас; на прочих — 200 баров */
+  /* initial window: on the pattern TF, the search window + after-signal bars + margin; on other TFs, 200 bars */
   const afterN = merged ? bars.length - (snap.klines[viewer.tf] || []).length : 0;
   const visible = isPatTf
     ? Math.min(bars.length, Math.max(120, (pat.search_range || 60) + 40 + Math.max(0, afterN)))
@@ -253,27 +252,27 @@ function renderSide() {
   const P = p => fmtPrice(p, tick);
   const kv = obj => '<div class="kv">' + Object.entries(obj).map(([k, v]) => `<span class="k">${k}</span><span>${v}</span>`).join('') + '</div>';
   $('vSide').innerHTML =
-    '<h3>СИГНАЛ</h3>' + kv({
-      'оценка': starsHtml(e),
-      'время': fmtDT(e.entered_at),
-      'направление': `<span class="${e.dir === 'long' ? 'up' : 'down'}">${e.dir}</span>`,
-      /* коэффициенты из настроек профиля, а не цены уровней: цена — число одной монеты,
-         коэффициенты говорят, каким набором настроек порождена запись */
+    '<h3>SIGNAL</h3>' + kv({
+      'score': starsHtml(e),
+      'time': fmtDT(e.entered_at),
+      'direction': `<span class="${e.dir === 'long' ? 'up' : 'down'}">${e.dir}</span>`,
+      /* coefficients from the profile settings rather than level prices: a price is a number
+         for one coin, while the coefficients tell which settings produced the record */
       'k1 / k2 / k3': [s.pattern.k1, s.pattern.k2, s.pattern.k3].join(' / '),
     }) +
-    '<h3>КОНТЕКСТ · ' + (viewer.which === 'scored' ? 'НА ОЦЕНКЕ' : 'НА СИГНАЛЕ') + '</h3>' + kv({
-      'профиль': s.scan_profile.name + ' (' + s.scan_profile.params.tf + ', ТОП ' + s.scan_profile.params.top_n + ')',
-      'цена 24ч': s.ticker24h ? P(s.ticker24h.price) : '—',
-      'изм. 24ч': s.ticker24h ? `<span class="${s.ticker24h.chg_pct >= 0 ? 'up' : 'down'}">${fmtPct(s.ticker24h.chg_pct)}</span>` : '—',
-      'объём 24ч': s.ticker24h ? fmtVol(s.ticker24h.vol_usdt) + ' USDT' : '—',
-      'тик': tick ?? '—',
-      'снапшот': Object.entries(s.klines).map(([tf, k]) => tf + '×' + k.length).join(' · '),
+    '<h3>CONTEXT · ' + (viewer.which === 'scored' ? 'SCORED' : 'AT SIGNAL') + '</h3>' + kv({
+      'profile': s.scan_profile.name + ' (' + s.scan_profile.params.tf + ', TOP ' + s.scan_profile.params.top_n + ')',
+      '24h price': s.ticker24h ? P(s.ticker24h.price) : '—',
+      '24h change': s.ticker24h ? `<span class="${s.ticker24h.chg_pct >= 0 ? 'up' : 'down'}">${fmtPct(s.ticker24h.chg_pct)}</span>` : '—',
+      '24h volume': s.ticker24h ? fmtVol(s.ticker24h.vol_usdt) + ' USDT' : '—',
+      'tick': tick ?? '—',
+      'snapshot': Object.entries(s.klines).map(([tf, k]) => tf + '×' + k.length).join(' · '),
     });
 }
 
 window.addEventListener('resize', () => { if (viewer.open) Chart.render($('vCanvas')); });
 
-/* ── старт ── */
+/* ── start ── */
 loadEntries();
 engineStatus();
 setInterval(engineStatus, 10000);

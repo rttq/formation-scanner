@@ -1,11 +1,11 @@
-/* Слой доступа к данным: formations / entries / snapshots / profiles / settings */
+/* Data access layer: formations / entries / snapshots / profiles / settings */
 import { db } from './index.js';
 import {
   PROFILE_DEFAULTS, SNAPSHOT_DEFAULTS, INTENSITY_DEFAULTS, profileWithDefaults,
   type ProfileParams, type SnapshotTfCfg, type Intensity,
 } from '../core/config.js';
 
-/* ── settings (значения — JSON) ──────────────────────────────── */
+/* ── settings (values are JSON) ──────────────────────────────── */
 const stGet = db.prepare(`SELECT value FROM settings WHERE key=?`);
 const stSet = db.prepare(`INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`);
 
@@ -21,7 +21,7 @@ export function setSetting(key: string, value: unknown): void {
 export const getSnapshotCfg = (): SnapshotTfCfg[] => getSetting('snapshot_config', SNAPSHOT_DEFAULTS);
 export const getIntensity = (): Intensity => ({ ...INTENSITY_DEFAULTS, ...getSetting<Partial<Intensity>>('intensity', {}) });
 
-/* ── скан-профили ────────────────────────────────────────────── */
+/* ── scan profiles ───────────────────────────────────────────── */
 export interface ProfileRow { name: string; params: ProfileParams; enabled: boolean; updated_at: number }
 
 export function listProfiles(): ProfileRow[] {
@@ -43,11 +43,11 @@ export function deleteProfile(name: string): boolean {
   return db.prepare(`DELETE FROM scan_profiles WHERE name=?`).run(name).changes > 0;
 }
 
-/* Одна транзакция на пачку записей. Скан по сетке вставляет сотни формаций
-   за проход; поодиночке это сотни коммитов WAL, подвешивающих цикл на сотни мс. */
+/* One transaction per batch of writes. A grid scan inserts hundreds of formations
+   per pass; one by one that's hundreds of WAL commits stalling the loop for hundreds of ms. */
 export const tx = db.transaction((fn: () => void) => { fn(); });
 
-/* ── формации ────────────────────────────────────────────────── */
+/* ── formations ──────────────────────────────────────────────── */
 export interface FormationRow {
   id: string; exchange: string; market: string; symbol: string; tf: string;
   dir: 'long' | 'short';
@@ -64,12 +64,12 @@ const insFormation = db.prepare(`INSERT OR IGNORE INTO formations
   VALUES (@id,@exchange,@market,@symbol,@tf,@dir,@ts_A,@price_A,@ts_B,@price_B,@ts_C,@price_C,@k1,@k2,@k3,@search_range,@status,@detected_at,@score_ttl_bars)`);
 
 export function insertFormation(f: Omit<FormationRow, 'resolved_at' | 'cancel_reason' | 'score' | 'score_stage' | 'score_signal_at' | 'scored_at' | 'score_seen_until'>): boolean {
-  return insFormation.run(f).changes > 0;   // false = такая формация уже есть (дедуп)
+  return insFormation.run(f).changes > 0;   // false = this formation already exists (dedup)
 }
 export function getFormation(id: string): FormationRow | undefined {
   return db.prepare(`SELECT * FROM formations WHERE id=?`).get(id) as FormationRow | undefined;
 }
-/* паттерн дошёл до сигнала (у сетки записи в журнале нет, статус ставим отдельно) */
+/* the pattern reached a signal (the grid has no journal entry, so the status is set separately) */
 export function markTriggered(id: string): void {
   db.prepare(`UPDATE formations SET status='triggered', resolved_at=? WHERE id=?`).run(Date.now(), id);
 }
@@ -82,7 +82,7 @@ export function listFormations(status?: string, limit = 100): FormationRow[] {
   return db.prepare(`SELECT * FROM formations ORDER BY detected_at DESC LIMIT ?`).all(limit) as FormationRow[];
 }
 
-/* ── скоринг ─────────────────────────────────────────────────── */
+/* ── scoring ─────────────────────────────────────────────────── */
 export function scoringFormations(): FormationRow[] {
   return db.prepare(`SELECT * FROM formations WHERE score_stage != 'final'`).all() as FormationRow[];
 }
@@ -94,7 +94,7 @@ export function updateFormationScore(id: string, s: {
     .run(s.score, s.score_stage, s.score_signal_at, s.scored_at, s.score_seen_until, id);
 }
 
-/* ── наблюдения (от сигнала до оценки) ─────────────────────────── */
+/* ── observations (from the signal to the final score) ────────── */
 export interface EntryRow {
   id: number; formation_id: string | null;
   exchange: string; market: string; symbol: string; tf: string; dir: 'long' | 'short';
@@ -105,7 +105,7 @@ export interface EntryRow {
   bars_held: number | null;
 }
 
-/* строка журнала: наблюдение + оценка его паттерна */
+/* journal row: an observation + its pattern's score */
 export interface EntryWithScore extends EntryRow {
   score: number | null; score_stage: string | null;
   score_signal_at: number | null; scored_at: number | null;
@@ -118,7 +118,7 @@ const insEntry = db.prepare(`INSERT INTO entries
 const insSnapshot = db.prepare(`INSERT INTO snapshots(entry_id,schema_version,captured_at,body) VALUES(?,?,?,?)`);
 const updFormationTriggered = db.prepare(`UPDATE formations SET status='triggered', resolved_at=? WHERE id=?`);
 
-/* атомарная запись: наблюдение + снапшот на сигнале + статус паттерна */
+/* atomic write: observation + snapshot at the signal + pattern status */
 export const insertEntryWithSnapshot = db.transaction(
   (e: Record<string, unknown>, schemaVersion: number, capturedAt: number, body: Buffer): number => {
     const id = Number(insEntry.run(e).lastInsertRowid);
@@ -138,7 +138,7 @@ export function closeEntry(id: number, exitedAt: number, exitPrice: number, reas
 export function openEntries(): EntryRow[] {
   return db.prepare(`SELECT * FROM entries WHERE status='open'`).all() as EntryRow[];
 }
-/* паттерны, по которым сигнал уже записан (для восстановления hasEntry) */
+/* patterns whose signal is already recorded (to restore hasEntry) */
 export function entryFormationIds(): Set<string> {
   const rows = db.prepare(`SELECT DISTINCT formation_id FROM entries WHERE formation_id IS NOT NULL`).all() as Array<{ formation_id: string }>;
   return new Set(rows.map(r => r.formation_id));
@@ -168,7 +168,7 @@ export function getSnapshotBody(entryId: number): Buffer | null {
   return r ? r.body : null;
 }
 
-/* ── дозапись klines_after: бары от сигнала до фиксации ───────── */
+/* ── klines_after add-on: bars from the signal to the final score ── */
 export function listEntriesNeedingAfter(limit: number): Array<{ id: number; symbol: string; tf: string; entered_at: number; exited_at: number }> {
   return db.prepare(`SELECT e.id, e.symbol, e.tf, e.entered_at, e.exited_at
     FROM entries e JOIN snapshots s ON s.entry_id = e.id
@@ -183,7 +183,7 @@ export function getAfterBody(entryId: number): Buffer | null {
   return r?.body_after ?? null;
 }
 
-/* ── снапшот на фиксации оценки ──────────────────────────────── */
+/* ── snapshot at the final score ─────────────────────────────── */
 export function listEntriesNeedingScoredSnapshot(limit: number): Array<{ id: number; formation_id: string | null; symbol: string }> {
   return db.prepare(`SELECT e.id, e.formation_id, e.symbol
     FROM entries e JOIN snapshots s ON s.entry_id = e.id
@@ -203,7 +203,7 @@ export function countEntries(): { total: number; open: number } {
   return { total: r.total, open: r.open ?? 0 };
 }
 
-/* ── обслуживание БД ─────────────────────────────────────────── */
+/* ── DB maintenance ──────────────────────────────────────────── */
 export function maintenanceStats() {
   const n = (t: string) => (db.prepare(`SELECT count(*) AS n FROM ${t}`).get() as { n: number }).n;
   const s = db.prepare(`SELECT coalesce(sum(length(body)),0) AS sig, coalesce(sum(length(body_after)),0) AS aft,
@@ -216,8 +216,8 @@ export function maintenanceStats() {
   };
 }
 
-/* Чистка завершённого старше N дней: снапшоты → закрытые наблюдения → паттерны без наблюдений.
-   Не трогает: armed-паттерны, открытые наблюдения и их паттерны — движок продолжает работу без рестарта. */
+/* Cleanup of finished records older than N days: snapshots → closed observations → patterns without observations.
+   Leaves alone: armed patterns, open observations and their patterns, so the engine keeps running without a restart. */
 export function cleanupOlderThan(days: number): { entries: number; snapshots: number; formations: number } {
   const cutoff = Date.now() - days * 86400000;
   const tx = db.transaction(() => {
@@ -232,7 +232,7 @@ export function cleanupOlderThan(days: number): { entries: number; snapshots: nu
   return tx();
 }
 
-/* ── сидинг дефолтов при первом запуске ──────────────────────── */
+/* ── seeding defaults on first start ─────────────────────────── */
 export function seedDefaults(): void {
   const profiles = listProfiles();
   if (!profiles.length) upsertProfile('default', PROFILE_DEFAULTS, true);
